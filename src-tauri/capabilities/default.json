@@ -1,0 +1,41 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-start-dragging",
+    "core:window:allow-is-maximized",
+
+    "dialog:allow-open",
+    "dialog:allow-save",
+
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-read-dir",
+    "fs:allow-create",
+    "fs:allow-exists",
+    
+    "shell:allow-execute",
+    "shell:allow-open",
+
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        "$APPDATA/*",
+        "$HOME/*",
+        "$DESKTOP/*",
+        "$DOCUMENT/*",
+        "$DOWNLOAD/*",
+        "**"
+      ]
+    }
+  ]
+}

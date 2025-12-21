@@ -1,0 +1,310 @@
+/* ===== EDITOR TABS ===== */
+.editor-tabs {
+    height: 36px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 var(--spacing-sm);
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.editor-tabs::-webkit-scrollbar {
+    height: 0;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px 6px 0 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    position: relative;
+    user-select: none;
+}
+
+.tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.tab.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.tab i {
+    font-size: 12px;
+    color: var(--accent-primary);
+}
+
+.tab-close {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: all var(--transition-fast);
+    padding: 0;
+    margin: 0;
+}
+
+.tab:hover .tab-close {
+    opacity: 1;
+}
+
+.tab-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* ===== MONACO EDITOR CONTAINER ===== */
+.editor-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+#monaco-editor {
+    width: 100%;
+    height: 100%;
+}
+
+/* Monaco Editor Custom Styling */
+.monaco-editor {
+    font-family: var(--font-mono) !important;
+}
+
+.monaco-editor .margin {
+    background: var(--bg-secondary) !important;
+}
+
+.monaco-editor .minimap {
+    background: var(--bg-secondary) !important;
+}
+
+/* ===== FILE TREE ===== */
+.file-tree-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+}
+
+.file-tree-loading i {
+    font-size: 32px;
+    margin-bottom: var(--spacing-md);
+}
+
+.file-tree-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin: 2px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    user-select: none;
+}
+
+.file-tree-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.file-tree-item:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: -2px;
+}
+
+.file-tree-item.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.file-tree-item.folder {
+    font-weight: 500;
+}
+
+.file-tree-item i {
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+}
+
+.file-tree-item.folder > i {
+    color: var(--accent-primary);
+}
+
+.file-tree-item.file > i {
+    color: var(--text-tertiary);
+}
+
+.file-tree-children {
+    margin-left: 20px;
+}
+
+.expand-icon {
+    width: 12px;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: transform var(--transition-fast);
+}
+
+.file-tree-item.expanded .expand-icon {
+    transform: rotate(90deg);
+}
+
+/* File type specific icons */
+.file-tree-item[data-type="js"] i,
+.file-tree-item[data-type="jsx"] i { color: #f7df1e; }
+.file-tree-item[data-type="ts"] i,
+.file-tree-item[data-type="tsx"] i { color: #3178c6; }
+.file-tree-item[data-type="html"] i { color: #e34c26; }
+.file-tree-item[data-type="css"] i,
+.file-tree-item[data-type="scss"] i { color: #264de4; }
+.file-tree-item[data-type="json"] i { color: #00d1b2; }
+.file-tree-item[data-type="md"] i { color: #fff; }
+.file-tree-item[data-type="rs"] i { color: #dea584; }
+.file-tree-item[data-type="toml"] i { color: #9c4221; }
+.file-tree-item[data-type="py"] i { color: #3776ab; }
+.file-tree-item[data-type="java"] i { color: #007396; }
+.file-tree-item[data-type="cpp"] i,
+.file-tree-item[data-type="c"] i,
+.file-tree-item[data-type="h"] i { color: #00599c; }
+
+/* ===== TERMINAL ===== */
+.terminal-header {
+    height: 32px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-md);
+}
+
+.terminal-tabs {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.terminal-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: transparent;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.terminal-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.terminal-tab.active {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+
+.terminal-tab i {
+    font-size: 11px;
+}
+
+.terminal-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.terminal-content {
+    flex: 1;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    line-height: 1.5;
+}
+
+.terminal-line {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.terminal-prompt {
+    color: var(--accent-primary);
+    margin-right: 8px;
+    font-weight: 600;
+}
+
+.terminal-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background: var(--accent-primary);
+    margin-left: 2px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 100% {
+        opacity: 0;
+    }
+}
+
+.terminal-output {
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.terminal-error {
+    color: #ef4444;
+}
+
+.terminal-success {
+    color: #10b981;
+}
+
+.terminal-warning {
+    color: #f59e0b;
+}
+
+.terminal-info {
+    color: #3b82f6;
+}
