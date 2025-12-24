@@ -1,8 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
-import { state, addTab, setCurrentSpf } from './state.js';
+import { state, addTab, getFocusedInstance } from './state.js';
 import { setEditorModel } from './monaco.js';
-import { renderTabs, switchToTab } from './tabs.js';
-import { showStatus } from './main.js';
+import { renderInstanceTabs, switchTab } from './tabs.js';
+import { ensureEditorExists, updateSplitButtons } from './splitEditor.js';
 
 export function initFileTree() {
     console.log('📁 Initializing file tree...');
@@ -12,24 +12,22 @@ export async function refreshFileTree(folderPath) {
     const fileTreeContainer = document.getElementById('fileTree');
     
     try {
-        const fileTree = await invoke('get_file_tree', { 
-            path: folderPath 
-        });
-        
+        const fileTree = await invoke('get_file_tree', { path: folderPath });
         state.fileTreeData = fileTree;
         renderFileTree(fileTree, fileTreeContainer);
     } catch (error) {
         console.error('Error loading file tree:', error);
-        showError(fileTreeContainer, error);
+        showError(fileTreeContainer);
     }
 }
 
 function renderFileTree(data, container) {
     container.innerHTML = '';
     
-    if (!data || !data.children || data.children.length === 0) {
+    // Verificação de segurança para dados vazios ou inválidos
+    if (!data || (!data.children && !Array.isArray(data))) {
         container.innerHTML = `
-            <div class="empty-state">
+            <div class="empty-explorer">
                 <span class="material-symbols-outlined">folder_off</span>
                 <p>No files found</p>
             </div>
@@ -37,73 +35,73 @@ function renderFileTree(data, container) {
         return;
     }
 
-    const tree = createTreeElements(data.children);
+    // Suporte caso a raiz seja diretamente um array ou um objeto com children
+    const items = Array.isArray(data) ? data : (data.children || []);
+    
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="empty-explorer">
+                <span class="material-symbols-outlined">folder_open</span>
+                <p>Empty Folder</p>
+            </div>
+        `;
+        return;
+    }
+
+    const tree = createTreeElements(items, 0);
     container.appendChild(tree);
 }
 
-function createTreeElements(items) {
+function createTreeElements(items, level) {
     const fragment = document.createDocumentFragment();
 
-    items.forEach(item => {
+    // Ordena: Pastas primeiro, depois arquivos
+    const sortedItems = [...items].sort((a, b) => {
+        const aIsDir = isDirectoryItem(a);
+        const bIsDir = isDirectoryItem(b);
+        if (aIsDir === bIsDir) return a.name.localeCompare(b.name);
+        return aIsDir ? -1 : 1;
+    });
+
+    sortedItems.forEach(item => {
+        const wrapper = document.createElement('div');
+        
+        // Verifica se é diretório de forma robusta
+        const isDir = isDirectoryItem(item);
+        
         const element = document.createElement('div');
         element.className = 'file-tree-item';
         element.setAttribute('data-path', item.path);
+        element.style.paddingLeft = `${12 + (level * 16)}px`;
         
-        // CORREÇÃO AQUI: O Rust envia "dir", não "directory"
-        const isDir = item.type === 'dir'; 
-
-        // Check if it's an .spf file
-        const isSpfFile = item.type === 'file' && item.name.endsWith('.spf');
-        
-        // Se for Diretório
         if (isDir) {
+            // === RENDERIZAÇÃO DE PASTA ===
             element.classList.add('folder');
             element.innerHTML = `
-                <div class="tree-item-content">
-                    <span class="material-symbols-outlined folder-icon">folder</span>
-                    <span>${item.name}</span>
+                <div class="expand-icon">
+                    <span class="material-symbols-outlined">chevron_right</span>
                 </div>
+                <span class="material-symbols-outlined">folder</span>
+                <span>${item.name}</span>
             `;
 
-            // Container para os filhos (inicialmente oculto)
-            const childrenContainer = document.createElement('div');
-            childrenContainer.className = 'file-tree-children';
-            childrenContainer.style.display = 'none'; // Começa fechado
-
-            // Adiciona evento de clique APENAS no conteúdo do item (texto/icone), não no container de filhos
-            const contentDiv = element.querySelector('.tree-item-content');
-            contentDiv.addEventListener('click', (e) => {
+            element.addEventListener('click', (e) => {
                 e.stopPropagation();
-                
-                // Toggle visual
-                const isHidden = childrenContainer.style.display === 'none';
-                childrenContainer.style.display = isHidden ? 'block' : 'none';
-                
-                const icon = contentDiv.querySelector('.folder-icon');
-                icon.textContent = isHidden ? 'folder_open' : 'folder';
+                toggleFolder(element);
             });
-
-            element.appendChild(childrenContainer);
-
-            // Renderiza filhos recursivamente se houver
-            if (item.children && item.children.length > 0) {
-                childrenContainer.appendChild(createTreeElements(item.children));
-            }
-        } 
-        // Se for Arquivo
-        else {
+        } else {
+            // === RENDERIZAÇÃO DE ARQUIVO ===
+            const isSpfFile = item.name.endsWith('.spf');
             element.classList.add('file');
             
-            // Mark SPF files specially
             if (isSpfFile) {
                 element.classList.add('spf-file');
             }
             
             element.innerHTML = `
-                <div class="tree-item-content">
-                    <span class="material-symbols-outlined">${isSpfFile ? 'settings' : 'description'}</span>
-                    <span>${item.name}</span>
-                </div>
+                <div class="expand-icon" style="visibility: hidden;"></div>
+                <span class="material-symbols-outlined">${isSpfFile ? 'settings' : 'description'}</span>
+                <span>${item.name}</span>
             `;
 
             element.addEventListener('click', (e) => {
@@ -112,21 +110,56 @@ function createTreeElements(items) {
             });
         }
 
-        fragment.appendChild(element);
+        wrapper.appendChild(element);
+
+        // Se for diretório, cria o container de filhos (mesmo se vazio, para permitir expansão futura ou visual correta)
+        if (isDir) {
+            const childrenContainer = document.createElement('div');
+            childrenContainer.className = 'file-tree-children';
+            childrenContainer.style.display = 'none'; // Começa fechado
+            
+            if (item.children && item.children.length > 0) {
+                childrenContainer.appendChild(createTreeElements(item.children, level + 1));
+            }
+            
+            wrapper.appendChild(childrenContainer);
+        }
+
+        fragment.appendChild(wrapper);
     });
 
     return fragment;
 }
 
-function toggleFolder(element, item) {
-    const childrenContainer = element.nextElementSibling;
+// Função auxiliar para determinar se um item é diretório
+function isDirectoryItem(item) {
+    return item.type === 'directory' || 
+           item.is_dir === true || 
+           (item.children && Array.isArray(item.children));
+}
+
+function toggleFolder(element) {
+    const wrapper = element.parentElement;
+    const childrenContainer = wrapper.querySelector('.file-tree-children');
     
-    if (childrenContainer && childrenContainer.classList.contains('file-tree-children')) {
-        const isExpanded = childrenContainer.style.display !== 'none';
-        childrenContainer.style.display = isExpanded ? 'none' : 'block';
-        
-        const icon = element.querySelector('.material-symbols-outlined');
-        icon.textContent = isExpanded ? 'folder' : 'folder_open';
+    // Alterna a classe 'expanded' no elemento pai para controle visual
+    element.classList.toggle('expanded');
+    const isExpanded = element.classList.contains('expanded');
+
+    // Atualiza ícones
+    const icon = element.querySelector('.expand-icon .material-symbols-outlined');
+    if (icon) {
+        icon.textContent = isExpanded ? 'expand_more' : 'chevron_right';
+    }
+    
+    const folderIcon = element.querySelectorAll('.material-symbols-outlined')[1];
+    if (folderIcon) {
+        folderIcon.textContent = isExpanded ? 'folder_open' : 'folder';
+    }
+
+    // Mostra/Esconde filhos se o container existir
+    if (childrenContainer) {
+        childrenContainer.style.display = isExpanded ? 'block' : 'none';
     }
 }
 
@@ -134,83 +167,50 @@ async function openFile(item) {
     const filePath = item.path;
     const fileName = item.name;
 
-    // If tab already exists, just switch to it
-    if (state.openTabs.has(filePath)) {
-        switchToTab(filePath);
-        return;
-    }
-
     try {
-        // Read file content
+        const instance = await ensureEditorExists();
+        
+        if (!instance) {
+            console.error('Failed to create editor instance');
+            return;
+        }
+
+        const instanceId = instance.id;
+
+        if (instance.tabs.has(filePath)) {
+            switchTab(instanceId, filePath);
+            return;
+        }
+
         const content = await invoke('read_file', { path: filePath });
         
-        // Check if it's an SPF file
-        const isSpfFile = fileName.endsWith('.spf');
+        addTab(instanceId, filePath, fileName, content);
+        renderInstanceTabs(instanceId);
+        setEditorModel(instanceId, filePath);
         
-        if (isSpfFile) {
-            // Parse SPF content as JSON
-            try {
-                const spfData = JSON.parse(content);
-                setCurrentSpf(filePath, spfData);
-                
-                // Mark this file in the tree
-                markSpfProjectInTree(filePath);
-                
-                showStatus(`Opened SPF project: ${fileName}`, 'success');
-            } catch (parseError) {
-                console.error('Error parsing SPF file:', parseError);
-                showStatus('Warning: SPF file is not valid JSON', 'warning');
-            }
-        }
-        
-        // Add tab
-        addTab(filePath, fileName, content);
-        
-        // Render tabs
-        renderTabs();
-        
-        // Set editor model
-        setEditorModel(filePath);
-        
-        // Update file tree selection
         updateFileTreeSelection(filePath);
+        updateSplitButtons();
         
-        showStatus(`Opened: ${fileName}`, 'success');
+        console.log('✅ File opened:', fileName);
     } catch (error) {
         console.error('Error opening file:', error);
-        showStatus(`Error opening: ${fileName}`, 'error');
-    }
-}
-
-function markSpfProjectInTree(spfPath) {
-    // Remove previous SPF project markers
-    document.querySelectorAll('.file-tree-item.spf-project').forEach(el => {
-        el.classList.remove('spf-project');
-    });
-    
-    // Mark the new SPF project
-    const spfElement = document.querySelector(`[data-path="${spfPath}"]`);
-    if (spfElement) {
-        spfElement.classList.add('spf-project');
     }
 }
 
 function updateFileTreeSelection(filePath) {
-    // Remove previous selection
     document.querySelectorAll('.file-tree-item.active').forEach(el => {
         el.classList.remove('active');
     });
 
-    // Add selection to current file
     const fileElement = document.querySelector(`[data-path="${filePath}"]`);
     if (fileElement) {
         fileElement.classList.add('active');
     }
 }
 
-function showError(container, error) {
+function showError(container) {
     container.innerHTML = `
-        <div class="empty-state">
+        <div class="empty-explorer">
             <span class="material-symbols-outlined">error</span>
             <p>Error loading files</p>
         </div>

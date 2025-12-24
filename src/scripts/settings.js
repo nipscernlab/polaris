@@ -133,7 +133,7 @@ function saveSettings() {
 
     // Save to localStorage
     try {
-        localStorage.setItem('aurora_settings', JSON.stringify(appState.settings));
+        localStorage.setItem('polaris_settings', JSON.stringify(appState.settings));
         console.log('Settings saved:', appState.settings);
         
         // Apply settings
@@ -173,7 +173,7 @@ function resetSettings() {
 
     // Save to localStorage
     try {
-        localStorage.setItem('aurora_settings', JSON.stringify(defaultSettings));
+        localStorage.setItem('polaris_settings', JSON.stringify(defaultSettings));
         console.log('Settings reset to defaults');
         showNotification('Settings reset to defaults', 'info');
     } catch (error) {

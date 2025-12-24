@@ -1,24 +1,25 @@
 import { invoke } from '@tauri-apps/api/core';
-import { state, removeTab, resetTabModified } from './state.js';
+import { state, getEditorInstance, removeTab, resetTabModified } from './state.js';
 import { setEditorModel } from './monaco.js';
-import { showStatus } from './main.js';
+import { checkAndCloseEmptyInstances } from './splitEditor.js';
 
-export function initTabs() {
-    console.log('📑 Initializing tabs...');
-}
+// ===== TAB MANAGEMENT =====
 
-export function renderTabs() {
-    const tabsContainer = document.getElementById('tabs');
+export function renderInstanceTabs(instanceId) {
+    const instance = getEditorInstance(instanceId);
+    if (!instance) return;
+
+    const tabsContainer = document.getElementById(`tabs-${instanceId}`);
     if (!tabsContainer) return;
 
     tabsContainer.innerHTML = '';
 
-    state.openTabs.forEach((tab, filePath) => {
+    instance.tabs.forEach((tab, filePath) => {
         const tabElement = document.createElement('div');
-        tabElement.className = 'tab';
+        tabElement.className = 'editor-tab';
         tabElement.setAttribute('data-path', filePath);
         
-        if (filePath === state.activeTab) {
+        if (filePath === instance.activeTab) {
             tabElement.classList.add('active');
         }
         
@@ -29,7 +30,7 @@ export function renderTabs() {
         tabElement.innerHTML = `
             <span class="material-symbols-outlined">description</span>
             <span>${tab.name}</span>
-            <button class="tab-close" aria-label="Close">
+            <button class="tab-close">
                 <span class="material-symbols-outlined">close</span>
             </button>
         `;
@@ -37,7 +38,7 @@ export function renderTabs() {
         // Tab click
         tabElement.addEventListener('click', (e) => {
             if (!e.target.closest('.tab-close')) {
-                switchToTab(filePath);
+                switchTab(instanceId, filePath);
             }
         });
 
@@ -45,104 +46,113 @@ export function renderTabs() {
         const closeBtn = tabElement.querySelector('.tab-close');
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            closeTab(filePath);
+            closeTab(instanceId, filePath);
         });
 
         tabsContainer.appendChild(tabElement);
     });
 }
 
-export function switchToTab(filePath) {
-    if (state.activeTab === filePath) return;
+export function switchTab(instanceId, filePath) {
+    const instance = getEditorInstance(instanceId);
+    if (!instance || instance.activeTab === filePath) return;
 
-    state.activeTab = filePath;
-    setEditorModel(filePath);
-    renderTabs();
+    instance.activeTab = filePath;
+    setEditorModel(instanceId, filePath);
+    renderInstanceTabs(instanceId);
 }
 
-export function closeTab(filePath) {
-    const tab = state.openTabs.get(filePath);
+export function closeTab(instanceId, filePath) {
+    const instance = getEditorInstance(instanceId);
+    if (!instance) return;
+
+    const tab = instance.tabs.get(filePath);
     
     if (tab && tab.modified) {
-        // Show unsaved changes modal
-        showUnsavedChangesModal(filePath, tab.name);
+        showUnsavedChangesModal(instanceId, filePath, tab.name);
     } else {
-        performCloseTab(filePath);
+        performCloseTab(instanceId, filePath);
     }
 }
 
-function performCloseTab(filePath) {
-    removeTab(filePath);
-    renderTabs();
-
-    // If no tabs left, show welcome screen
-    if (state.openTabs.size === 0) {
-        const editorEl = document.getElementById('monacoEditor');
-        const welcomeScreen = document.getElementById('welcomeScreen');
-        
-        if (editorEl) editorEl.classList.remove('active');
-        if (welcomeScreen) welcomeScreen.classList.remove('hidden');
-        
-        if (state.editor) {
-            state.editor.setModel(null);
-        }
-    } else if (state.activeTab) {
-        setEditorModel(state.activeTab);
-    }
-}
-
-function showUnsavedChangesModal(filePath, fileName) {
-    state.pendingCloseTab = filePath;
+function performCloseTab(instanceId, filePath) {
+    removeTab(instanceId, filePath);
     
-    const modal = document.getElementById('unsavedChangesModal');
+    const instance = getEditorInstance(instanceId);
+    if (!instance) return;
+
+    renderInstanceTabs(instanceId);
+
+    // If no tabs left, check if we should close this instance
+    if (instance.tabs.size === 0) {
+        checkAndCloseEmptyInstances();
+        
+        // If all instances are closed, show welcome screen
+        if (state.editorInstances.length === 0) {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) {
+                welcomeScreen.classList.remove('hidden');
+            }
+        }
+    } else if (instance.activeTab) {
+        setEditorModel(instanceId, instance.activeTab);
+    }
+}
+
+function showUnsavedChangesModal(instanceId, filePath, fileName) {
+    state.pendingCloseData = { instanceId, filePath };
+    
+    const modal = document.getElementById('unsavedModal');
     const fileNameEl = document.getElementById('unsavedFileName');
     
     if (fileNameEl) fileNameEl.textContent = fileName;
     if (modal) modal.classList.add('active');
 
-    // Setup buttons
-    setupUnsavedChangesButtons();
+    setupUnsavedButtons();
 }
 
-function setupUnsavedChangesButtons() {
-    const saveBtn = document.getElementById('saveAndCloseBtn');
+function setupUnsavedButtons() {
+    const saveBtn = document.getElementById('saveBtn');
     const dontSaveBtn = document.getElementById('dontSaveBtn');
-    const cancelBtn = document.getElementById('cancelCloseBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
 
     if (saveBtn) {
         saveBtn.onclick = async () => {
-            if (state.pendingCloseTab) {
-                await saveFile(state.pendingCloseTab);
-                performCloseTab(state.pendingCloseTab);
-                closeUnsavedChangesModal();
+            if (state.pendingCloseData) {
+                await saveFile(state.pendingCloseData.instanceId, state.pendingCloseData.filePath);
+                performCloseTab(state.pendingCloseData.instanceId, state.pendingCloseData.filePath);
+                closeUnsavedModal();
             }
         };
     }
 
     if (dontSaveBtn) {
         dontSaveBtn.onclick = () => {
-            if (state.pendingCloseTab) {
-                performCloseTab(state.pendingCloseTab);
-                closeUnsavedChangesModal();
+            if (state.pendingCloseData) {
+                performCloseTab(state.pendingCloseData.instanceId, state.pendingCloseData.filePath);
+                closeUnsavedModal();
             }
         };
     }
 
     if (cancelBtn) {
         cancelBtn.onclick = () => {
-            closeUnsavedChangesModal();
+            closeUnsavedModal();
         };
     }
 }
 
-function closeUnsavedChangesModal() {
-    const modal = document.getElementById('unsavedChangesModal');
+function closeUnsavedModal() {
+    const modal = document.getElementById('unsavedModal');
     if (modal) modal.classList.remove('active');
-    state.pendingCloseTab = null;
+    state.pendingCloseData = null;
 }
 
-export async function saveFile(filePath) {
-    const tab = state.openTabs.get(filePath);
+export async function saveFile(instanceId, filePath) {
+    const instance = getEditorInstance(instanceId);
+    if (!instance) return;
+
+    const tab = instance.tabs.get(filePath);
     if (!tab) return;
 
     try {
@@ -151,28 +161,33 @@ export async function saveFile(filePath) {
             content: tab.content
         });
 
-        resetTabModified(filePath);
-        renderTabs();
-        showStatus(`Saved: ${tab.name}`, 'success');
+        resetTabModified(instanceId, filePath);
+        renderInstanceTabs(instanceId);
+        
+        const statusMessage = document.getElementById('statusMessage');
+        if (statusMessage) {
+            statusMessage.textContent = `Saved: ${tab.name}`;
+            statusMessage.style.color = 'var(--success)';
+            setTimeout(() => {
+                statusMessage.textContent = 'Ready';
+                statusMessage.style.color = '';
+            }, 2000);
+        }
     } catch (error) {
         console.error('Error saving file:', error);
-        showStatus(`Error saving: ${tab.name}`, 'error');
     }
 }
 
 export async function saveActiveFile() {
-    if (state.activeTab) {
-        await saveFile(state.activeTab);
+    const focusedInstance = state.editorInstances.find(i => i.focused);
+    if (focusedInstance && focusedInstance.activeTab) {
+        await saveFile(focusedInstance.id, focusedInstance.activeTab);
     }
 }
 
 export function closeActiveTab() {
-    if (state.activeTab) {
-        closeTab(state.activeTab);
+    const focusedInstance = state.editorInstances.find(i => i.focused);
+    if (focusedInstance && focusedInstance.activeTab) {
+        closeTab(focusedInstance.id, focusedInstance.activeTab);
     }
-}
-
-export function reopenClosedTab() {
-    // TODO: Implement tab history
-    showStatus('Reopen closed tab not implemented yet', 'info');
 }

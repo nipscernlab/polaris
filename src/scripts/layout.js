@@ -49,11 +49,11 @@ function saveLayoutState() {
         horizontal: horizontalSplit ? horizontalSplit.getSizes() : null,
         vertical: verticalSplit ? verticalSplit.getSizes() : null
     };
-    localStorage.setItem('aurora_layout', JSON.stringify(layoutState));
+    localStorage.setItem('polaris_layout', JSON.stringify(layoutState));
 }
 
 function loadLayoutState() {
-    const saved = localStorage.getItem('aurora_layout');
+    const saved = localStorage.getItem('polaris_layout');
     if (saved) {
         try {
             const layoutState = JSON.parse(saved);

@@ -1,6 +1,5 @@
-import { state, setTerminalVisible } from './state.js';
 import { saveActiveFile } from './tabs.js';
-import { showStatus } from './main.js';
+import { splitEditor } from './splitEditor.js';
 
 const commands = [
     {
@@ -11,60 +10,18 @@ const commands = [
         action: () => saveActiveFile()
     },
     {
-        id: 'view.terminal',
-        icon: 'terminal',
-        title: 'Toggle Terminal',
-        description: 'Show or hide the terminal',
-        action: () => setTerminalVisible(!state.terminalVisible)
+        id: 'editor.split',
+        icon: 'splitscreen',
+        title: 'Split Editor',
+        description: 'Split the editor into multiple panes',
+        action: () => splitEditor()
     },
     {
-        id: 'project.new',
-        icon: 'create_new_folder',
-        title: 'New Project',
-        description: 'Create a new project',
-        action: () => openNewProjectModal()
-    },
-    {
-        id: 'compile.cmm',
-        icon: 'code',
-        title: 'Compile C-- (CMM)',
-        description: 'Compile C-- source code',
-        action: () => showStatus('CMM compilation not implemented', 'info')
-    },
-    {
-        id: 'compile.asm',
-        icon: 'memory',
-        title: 'Compile Assembly',
-        description: 'Compile assembly source code',
-        action: () => showStatus('ASM compilation not implemented', 'info')
-    },
-    {
-        id: 'compile.icarus',
-        icon: 'flash_on',
-        title: 'Run Icarus Verilog',
-        description: 'Simulate with Icarus Verilog',
-        action: () => showStatus('Icarus simulation not implemented', 'info')
-    },
-    {
-        id: 'view.gtkwave',
-        icon: 'show_chart',
-        title: 'Open GTKWave',
-        description: 'View waveforms in GTKWave',
-        action: () => showStatus('GTKWave viewer not implemented', 'info')
-    },
-    {
-        id: 'build.full',
-        icon: 'build',
-        title: 'Full Build',
-        description: 'Build the entire project',
-        action: () => showStatus('Full build not implemented', 'info')
-    },
-    {
-        id: 'build.stop',
-        icon: 'stop',
-        title: 'Stop Compilation',
-        description: 'Stop the current compilation',
-        action: () => showStatus('Stop compilation not implemented', 'info')
+        id: 'file.openFolder',
+        icon: 'folder_open',
+        title: 'Open Folder',
+        description: 'Open a folder as workspace',
+        action: () => document.getElementById('openFolderBtn')?.click()
     }
 ];
 
@@ -76,49 +33,34 @@ export function initCommandPalette() {
 
     const overlay = document.getElementById('commandPaletteOverlay');
     const searchInput = document.getElementById('commandSearch');
-    const commandPaletteBtn = document.getElementById('commandPaletteBtn');
 
-    // Open from button
-    if (commandPaletteBtn) {
-        commandPaletteBtn.addEventListener('click', () => {
-            overlay?.classList.add('active');
-            searchInput?.focus();
-        });
-    }
+    overlay?.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeCommandPalette();
+        }
+    });
 
-    // Close on overlay click
-    if (overlay) {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                closeCommandPalette();
-            }
-        });
-    }
+    searchInput?.addEventListener('input', (e) => {
+        filterCommands(e.target.value);
+        renderCommands();
+    });
 
-    // Search input
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            filterCommands(e.target.value);
+    searchInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, filteredCommands.length - 1);
             renderCommands();
-        });
-
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                selectedIndex = Math.min(selectedIndex + 1, filteredCommands.length - 1);
-                renderCommands();
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                selectedIndex = Math.max(selectedIndex - 1, 0);
-                renderCommands();
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                executeCommand(selectedIndex);
-            } else if (e.key === 'Escape') {
-                closeCommandPalette();
-            }
-        });
-    }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, 0);
+            renderCommands();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            executeCommand(selectedIndex);
+        } else if (e.key === 'Escape') {
+            closeCommandPalette();
+        }
+    });
 
     renderCommands();
 }
@@ -193,13 +135,5 @@ function closeCommandPalette() {
         searchInput.value = '';
         filterCommands('');
         renderCommands();
-    }
-}
-
-function openNewProjectModal() {
-    const modal = document.getElementById('newProjectModal');
-    if (modal) {
-        modal.classList.add('active');
-        document.getElementById('projectName')?.focus();
     }
 }

@@ -72,7 +72,7 @@ fn execute_system_command(parts: &[&str]) -> io::Result<String> {
 
 fn get_help_text() -> String {
     String::from(
-        r#"AURORA Terminal - Available Commands:
+        r#"POLARIS Terminal - Available Commands:
 
 Built-in Commands:
   help        Show this help message

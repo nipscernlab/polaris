@@ -1,6 +1,6 @@
-import { state, setTerminalVisible } from './state.js';
-import { saveActiveFile, closeActiveTab, reopenClosedTab } from './tabs.js';
-import { focusEditor } from './monaco.js';
+import { state } from './state.js';
+import { saveActiveFile, closeActiveTab } from './tabs.js';
+import { splitEditor } from './splitEditor.js';
 
 export function initKeyboardShortcuts() {
     console.log('⌨️ Initializing keyboard shortcuts...');
@@ -16,43 +16,30 @@ function handleKeyDown(e) {
         return;
     }
 
-    // Save: Ctrl+S
-    if (e.ctrlKey && e.key === 's') {
+    // Save: Ctrl+S (only if there's an editor)
+    if (e.ctrlKey && e.key === 's' && state.editorInstances.length > 0) {
         e.preventDefault();
         saveActiveFile();
         return;
     }
 
-    // Close Tab: Ctrl+W
-    if (e.ctrlKey && e.key === 'w') {
+    // Close Tab: Ctrl+W (only if there's an editor)
+    if (e.ctrlKey && e.key === 'w' && state.editorInstances.length > 0) {
         e.preventDefault();
         closeActiveTab();
         return;
     }
 
-    // Reopen Closed Tab: Ctrl+Shift+T
-    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+    // Split Editor: Ctrl+\ (only if there's an editor and can split)
+    if (e.ctrlKey && e.key === '\\' && state.editorInstances.length > 0 && state.editorInstances.length < 3) {
         e.preventDefault();
-        reopenClosedTab();
-        return;
-    }
-
-    // Toggle Terminal: Ctrl+`
-    if (e.ctrlKey && e.key === '`') {
-        e.preventDefault();
-        toggleTerminal();
+        splitEditor();
         return;
     }
 
     // Close Modal: Escape
     if (e.key === 'Escape') {
         closeModals();
-        return;
-    }
-
-    // Focus Editor: Escape (when in other areas)
-    if (e.key === 'Escape' && document.activeElement !== state.editor?.getDomNode()) {
-        focusEditor();
         return;
     }
 }
@@ -65,10 +52,6 @@ function openCommandPalette() {
         overlay.classList.add('active');
         setTimeout(() => searchInput.focus(), 100);
     }
-}
-
-function toggleTerminal() {
-    setTerminalVisible(!state.terminalVisible);
 }
 
 function closeModals() {

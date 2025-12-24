@@ -22,7 +22,7 @@ export function initTerminal() {
     if (terminalContent) {
         terminalContent.innerHTML = `
             <div style="color: var(--text-tertiary);">
-                AURORA Terminal - Type commands below
+                POLARIS Terminal - Type commands below
                 Use Ctrl+\` to toggle terminal
             </div>
         `;

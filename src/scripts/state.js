@@ -1,25 +1,17 @@
-// ===== CENTRALIZED APPLICATION STATE =====
+// ===== CENTRALIZED STATE MANAGEMENT =====
 
 export const state = {
     // Workspace
     workspacePath: null,
     workspaceName: null,
 
-    // Project
-    currentSpfPath: null,
-    currentSpfData: null,
-
-    // Editor
-    editor: null,
-    openTabs: new Map(), // path -> { name, content, modified, model }
-    activeTab: null,
+    // Editor Instances
+    editorInstances: [], // Array of { id, editor, tabs: Map, activeTab, focused }
+    nextEditorId: 1,
+    focusedInstanceId: null,
 
     // File Tree
     fileTreeData: null,
-
-    // Terminal
-    terminalVisible: false,
-    terminalHistory: [],
 
     // Settings
     settings: {
@@ -27,126 +19,183 @@ export const state = {
         tabSize: 4,
         lineNumbers: true,
         wordWrap: false,
-        theme: 'aurora-dark',
+        theme: 'polaris-dark',
         fontFamily: 'JetBrains Mono',
         minimap: true,
         padding: 16
     },
 
     // UI State
-    commandPaletteOpen: false,
-    unsavedChangesModalOpen: false,
-    pendingCloseTab: null
+    unsavedModalOpen: false,
+    pendingCloseData: null
 };
 
-// ===== STATE MUTATIONS =====
+// ===== WORKSPACE =====
 
 export function setWorkspace(path, name) {
     state.workspacePath = path;
     state.workspaceName = name;
     
-    // Update UI
-    const workspaceNameEl = document.getElementById('workspaceName');
-    if (workspaceNameEl) {
-        workspaceNameEl.textContent = name || 'No Folder Opened';
+    const workspaceInfo = document.getElementById('workspaceInfo');
+    if (workspaceInfo) {
+        workspaceInfo.textContent = name || 'No Folder Open';
     }
 }
 
-export function addTab(filePath, fileName, content) {
-    if (!state.openTabs.has(filePath)) {
-        state.openTabs.set(filePath, {
+// ===== EDITOR INSTANCES =====
+
+export function createEditorInstance(editorElement) {
+    const instance = {
+        id: state.nextEditorId++,
+        editor: editorElement,
+        tabs: new Map(),
+        activeTab: null,
+        focused: false
+    };
+    
+    state.editorInstances.push(instance);
+    
+    if (state.editorInstances.length === 1) {
+        setFocusedInstance(instance.id);
+    }
+    
+    return instance;
+}
+
+export function removeEditorInstance(instanceId) {
+    const index = state.editorInstances.findIndex(i => i.id === instanceId);
+    if (index !== -1) {
+        const instance = state.editorInstances[index];
+        
+        // Dispose all models
+        instance.tabs.forEach(tab => {
+            if (tab.model) {
+                tab.model.dispose();
+            }
+        });
+        
+        // Dispose editor
+        if (instance.editor) {
+            instance.editor.dispose();
+        }
+        
+        state.editorInstances.splice(index, 1);
+        
+        // Update focus
+        if (state.focusedInstanceId === instanceId) {
+            if (state.editorInstances.length > 0) {
+                setFocusedInstance(state.editorInstances[0].id);
+            } else {
+                state.focusedInstanceId = null;
+            }
+        }
+    }
+}
+
+export function getEditorInstance(instanceId) {
+    return state.editorInstances.find(i => i.id === instanceId);
+}
+
+export function getFocusedInstance() {
+    if (!state.focusedInstanceId) return null;
+    return getEditorInstance(state.focusedInstanceId);
+}
+
+export function setFocusedInstance(instanceId) {
+    state.editorInstances.forEach(instance => {
+        instance.focused = instance.id === instanceId;
+    });
+    state.focusedInstanceId = instanceId;
+}
+
+// ===== TABS =====
+
+export function addTab(instanceId, filePath, fileName, content) {
+    const instance = getEditorInstance(instanceId);
+    if (!instance) return;
+
+    if (!instance.tabs.has(filePath)) {
+        instance.tabs.set(filePath, {
             name: fileName,
+            path: filePath,
             content: content,
             originalContent: content,
             modified: false,
             model: null
         });
     }
-    state.activeTab = filePath;
+    
+    instance.activeTab = filePath;
 }
 
-export function removeTab(filePath) {
-    const tab = state.openTabs.get(filePath);
+export function removeTab(instanceId, filePath) {
+    const instance = getEditorInstance(instanceId);
+    if (!instance) return;
+
+    const tab = instance.tabs.get(filePath);
     if (tab && tab.model) {
         tab.model.dispose();
     }
-    state.openTabs.delete(filePath);
     
-    // Set new active tab
-    if (state.activeTab === filePath) {
-        const tabs = Array.from(state.openTabs.keys());
-        state.activeTab = tabs.length > 0 ? tabs[tabs.length - 1] : null;
+    instance.tabs.delete(filePath);
+    
+    // Update active tab
+    if (instance.activeTab === filePath) {
+        const tabs = Array.from(instance.tabs.keys());
+        instance.activeTab = tabs.length > 0 ? tabs[tabs.length - 1] : null;
     }
 }
 
-export function markTabModified(filePath, modified) {
-    const tab = state.openTabs.get(filePath);
-    if (tab) {
-        tab.modified = modified;
-    }
+export function getTab(instanceId, filePath) {
+    const instance = getEditorInstance(instanceId);
+    if (!instance) return null;
+    return instance.tabs.get(filePath);
 }
 
-export function updateTabContent(filePath, content) {
-    const tab = state.openTabs.get(filePath);
+export function updateTabContent(instanceId, filePath, content) {
+    const tab = getTab(instanceId, filePath);
     if (tab) {
         tab.content = content;
         tab.modified = content !== tab.originalContent;
     }
 }
 
-export function resetTabModified(filePath) {
-    const tab = state.openTabs.get(filePath);
+export function resetTabModified(instanceId, filePath) {
+    const tab = getTab(instanceId, filePath);
     if (tab) {
         tab.originalContent = tab.content;
         tab.modified = false;
     }
 }
 
-export function closeAllTabs() {
-    state.openTabs.forEach((tab, path) => {
-        if (tab.model) {
-            tab.model.dispose();
-        }
-    });
-    state.openTabs.clear();
-    state.activeTab = null;
-}
-
-export function getActiveTab() {
-    if (!state.activeTab) return null;
-    return state.openTabs.get(state.activeTab);
-}
-
 export function hasUnsavedChanges() {
-    for (const [path, tab] of state.openTabs) {
-        if (tab.modified) {
-            return true;
+    for (const instance of state.editorInstances) {
+        for (const [path, tab] of instance.tabs) {
+            if (tab.modified) {
+                return true;
+            }
         }
     }
     return false;
 }
 
-export function getModifiedTabs() {
-    const modified = [];
-    for (const [path, tab] of state.openTabs) {
-        if (tab.modified) {
-            modified.push({ path, name: tab.name });
-        }
-    }
-    return modified;
+export function closeAllTabs() {
+    state.editorInstances.forEach(instance => {
+        instance.tabs.forEach(tab => {
+            if (tab.model) {
+                tab.model.dispose();
+            }
+        });
+        instance.tabs.clear();
+        instance.activeTab = null;
+    });
 }
 
-export function setTerminalVisible(visible) {
-    state.terminalVisible = visible;
-    const terminalContainer = document.getElementById('terminalContainer');
-    if (terminalContainer) {
-        terminalContainer.classList.toggle('visible', visible);
-    }
-}
+// ===== SETTINGS =====
 
 export function saveSettings() {
     try {
-        localStorage.setItem('aurora_settings', JSON.stringify(state.settings));
+        localStorage.setItem('polaris_settings', JSON.stringify(state.settings));
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -154,27 +203,11 @@ export function saveSettings() {
 
 export function loadSettings() {
     try {
-        const saved = localStorage.getItem('aurora_settings');
+        const saved = localStorage.getItem('polaris_settings');
         if (saved) {
             Object.assign(state.settings, JSON.parse(saved));
         }
     } catch (error) {
         console.error('Error loading settings:', error);
     }
-}
-
-export function setCurrentSpf(spfPath, spfData) {
-    state.currentSpfPath = spfPath;
-    state.currentSpfData = spfData;
-    
-    // Enable/disable Processor Hub button
-    const processorHubBtn = document.getElementById('processorHubBtn');
-    if (processorHubBtn) {
-        processorHubBtn.disabled = !spfPath;
-        processorHubBtn.title = spfPath ? 'Open Processor Hub' : 'Open a .spf project first';
-    }
-}
-
-export function hasSpfProject() {
-    return state.currentSpfPath !== null;
 }

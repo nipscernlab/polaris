@@ -1,7 +1,7 @@
 {
-  "productName": "AURORA",
+  "productName": "POLARIS",
   "version": "0.1.0",
-  "identifier": "com.aurora.editor",
+  "identifier": "com.polaris.editor",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "AURORA Editor",
+        "title": "POLARIS Editor",
         "width": 1400,
         "height": 900,
         "minWidth": 800,
