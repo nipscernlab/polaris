@@ -6,10 +6,11 @@ import { initSplitEditor } from './splitEditor.js';
 import { initFileTree, refreshFileTree } from './fileTree.js';
 import { initCommandPalette } from './commandPalette.js';
 import { initKeyboardShortcuts } from './keyboard.js';
+import { initSidebarResizer } from './sidebarResizer.js';
 
 // ===== INITIALIZATION =====
 async function initApp() {
-    console.log('🚀 Initializing AURORA Editor...');
+    console.log('🚀 Initializing POLARIS Editor...');
 
     try {
         loadSettings();
@@ -18,11 +19,12 @@ async function initApp() {
         initFileTree();
         initCommandPalette();
         initKeyboardShortcuts();
+        initSidebarResizer(); // Add sidebar resizer
         setupFolderOpening();
 
-        console.log('✅ AURORA Editor initialized');
+        console.log('✅ POLARIS Editor initialized');
     } catch (error) {
-        console.error('❌ Error initializing AURORA:', error);
+        console.error('❌ Error initializing POLARIS:', error);
     }
 }
 

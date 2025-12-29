@@ -77,7 +77,115 @@ pub fn read_file_content(path: &str) -> io::Result<String> {
 
 /// Write content to file
 pub fn write_file_content(path: &str, content: &str) -> io::Result<()> {
+    // Ensure parent directory exists
+    if let Some(parent) = Path::new(path).parent() {
+        fs::create_dir_all(parent)?;
+    }
     fs::write(path, content)
+}
+
+/// Create a new empty file
+pub fn create_file(path: &str) -> io::Result<()> {
+    let path_obj = Path::new(path);
+    
+    // Ensure parent directory exists
+    if let Some(parent) = path_obj.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    
+    // Create empty file if it doesn't exist
+    if !path_obj.exists() {
+        fs::File::create(path)?;
+    }
+    
+    Ok(())
+}
+
+/// Create a new folder
+pub fn create_folder(path: &str) -> io::Result<()> {
+    fs::create_dir_all(path)
+}
+
+/// Rename/move a file or folder
+pub fn rename_item(old_path: &str, new_path: &str) -> io::Result<()> {
+    let old_path_obj = Path::new(old_path);
+    let new_path_obj = Path::new(new_path);
+    
+    // Check if source exists
+    if !old_path_obj.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Source path not found"
+        ));
+    }
+    
+    // Ensure parent directory of new path exists
+    if let Some(parent) = new_path_obj.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    
+    // Check if target already exists
+    if new_path_obj.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "Target path already exists"
+        ));
+    }
+    
+    fs::rename(old_path, new_path)
+}
+
+/// Delete a file or folder
+pub fn delete_item(path: &str) -> io::Result<()> {
+    let path_obj = Path::new(path);
+    
+    if !path_obj.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Path not found"
+        ));
+    }
+    
+    if path_obj.is_file() {
+        fs::remove_file(path)
+    } else if path_obj.is_dir() {
+        fs::remove_dir_all(path)
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Unknown file type"
+        ))
+    }
+}
+
+/// Move a file or folder to a new location
+pub fn move_item(source_path: &str, target_path: &str) -> io::Result<()> {
+    let source = Path::new(source_path);
+    let target = Path::new(target_path);
+    
+    // Check if source exists
+    if !source.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Source path not found"
+        ));
+    }
+    
+    // Ensure target parent directory exists
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    
+    // Check if target already exists
+    if target.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "Target path already exists"
+        ));
+    }
+    
+    // Move the item
+    fs::rename(source, target)
 }
 
 /// Create a new project structure with SPF file
@@ -113,27 +221,27 @@ pub fn create_project_with_spf(project_path: &str, project_name: &str) -> io::Re
 
 /// Generate processor structure and update SPF
 pub fn generate_processor_structure(spf_path: &str, config: &ProcessorConfig) -> io::Result<String> {
-    // 1. Localizar a raiz do projeto baseada no arquivo .spf
+    // 1. Locate project root based on SPF file
     let path = Path::new(spf_path);
     let project_root = path.parent()
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Project directory not found"))?;
 
-    // 2. Definir o caminho da pasta do novo processador
+    // 2. Define processor folder path
     let processor_path = project_root.join(&config.name);
 
-    // 3. Criar a estrutura de pastas física
+    // 3. Create physical folder structure
     if !processor_path.exists() {
         fs::create_dir_all(&processor_path)?;
     }
 
-    // Criar as subpastas obrigatórias
+    // Create required subfolders
     fs::create_dir_all(processor_path.join("Hardware"))?;
     fs::create_dir_all(processor_path.join("Software"))?;
     fs::create_dir_all(processor_path.join("Simulation"))?;
 
-    // 4. Atualizar o arquivo .spf com os dados do novo processador
+    // 4. Update SPF file with new processor data
     
-    // Ler conteúdo atual do SPF
+    // Read current SPF content
     let mut content = String::new();
     let mut file = fs::File::open(spf_path)?;
     file.read_to_string(&mut content)?;
@@ -142,7 +250,7 @@ pub fn generate_processor_structure(spf_path: &str, config: &ProcessorConfig) ->
     let mut spf_data: serde_json::Value = serde_json::from_str(&content)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-    // Criar objeto do processador
+    // Create processor object
     let processor_info = json!({
         "name": config.name,
         "totalBits": config.total_bits,
@@ -153,11 +261,11 @@ pub fn generate_processor_structure(spf_path: &str, config: &ProcessorConfig) ->
         "inputPorts": config.input_ports,
         "outputPorts": config.output_ports,
         "gain": config.gain,
-        "relativePath": config.name, // Caminho relativo para a pasta
+        "relativePath": config.name,
         "created": chrono::Utc::now().to_rfc3339()
     });
 
-    // Adicionar ao array "processors"
+    // Add to "processors" array
     if let Some(processors) = spf_data.get_mut("processors") {
         if let Some(arr) = processors.as_array_mut() {
             arr.push(processor_info);
@@ -166,7 +274,7 @@ pub fn generate_processor_structure(spf_path: &str, config: &ProcessorConfig) ->
         spf_data["processors"] = json!([processor_info]);
     }
 
-    // Definir como padrão se for o primeiro
+    // Set as default if first processor
     if let Some(settings) = spf_data.get_mut("settings") {
         if let Some(obj) = settings.as_object_mut() {
             let current_default = obj.get("defaultProcessor").and_then(|v| v.as_str());
@@ -176,7 +284,7 @@ pub fn generate_processor_structure(spf_path: &str, config: &ProcessorConfig) ->
         }
     }
 
-    // Salvar arquivo atualizado
+    // Save updated file
     let new_content = serde_json::to_string_pretty(&spf_data)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         

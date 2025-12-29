@@ -11,7 +11,6 @@ pub struct FileNode {
     pub children: Option<Vec<FileNode>>,
 }
 
-// === ADD THIS ATTRIBUTE BELOW ===
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")] 
 pub struct ProcessorConfig {
@@ -31,6 +30,8 @@ pub struct ProjectResult {
     pub spf_path: String,
 }
 
+// ===== FILE TREE OPERATIONS =====
+
 /// Get the file tree for a specific path
 #[tauri::command]
 pub async fn get_file_tree(path: String) -> Result<FileNode, String> {
@@ -39,6 +40,8 @@ pub async fn get_file_tree(path: String) -> Result<FileNode, String> {
     file_system::build_file_tree(&workspace_path)
         .map_err(|e| format!("Failed to build file tree: {}", e))
 }
+
+// ===== FILE OPERATIONS =====
 
 /// Read file contents
 #[tauri::command]
@@ -53,6 +56,43 @@ pub async fn save_file(path: String, content: String) -> Result<(), String> {
     file_system::write_file_content(&path, &content)
         .map_err(|e| format!("Failed to save file: {}", e))
 }
+
+/// Create a new empty file
+#[tauri::command]
+pub async fn create_file(path: String) -> Result<(), String> {
+    file_system::create_file(&path)
+        .map_err(|e| format!("Failed to create file: {}", e))
+}
+
+/// Create a new folder
+#[tauri::command]
+pub async fn create_folder(path: String) -> Result<(), String> {
+    file_system::create_folder(&path)
+        .map_err(|e| format!("Failed to create folder: {}", e))
+}
+
+/// Rename a file or folder
+#[tauri::command]
+pub async fn rename_item(old_path: String, new_path: String) -> Result<(), String> {
+    file_system::rename_item(&old_path, &new_path)
+        .map_err(|e| format!("Failed to rename item: {}", e))
+}
+
+/// Delete a file or folder
+#[tauri::command]
+pub async fn delete_item(path: String) -> Result<(), String> {
+    file_system::delete_item(&path)
+        .map_err(|e| format!("Failed to delete item: {}", e))
+}
+
+/// Move a file or folder to a new location
+#[tauri::command]
+pub async fn move_item(source_path: String, target_path: String) -> Result<(), String> {
+    file_system::move_item(&source_path, &target_path)
+        .map_err(|e| format!("Failed to move item: {}", e))
+}
+
+// ===== PROJECT OPERATIONS =====
 
 /// Create a new project with SPF file and structure
 #[tauri::command]
@@ -73,6 +113,8 @@ pub async fn generate_processor(
     file_system::generate_processor_structure(&spf_path, &config)
         .map_err(|e| format!("Failed to generate processor: {}", e))
 }
+
+// ===== TERMINAL OPERATIONS =====
 
 /// Execute terminal command
 #[tauri::command]
