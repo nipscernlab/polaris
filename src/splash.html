@@ -60,6 +60,48 @@
             );
             pointer-events: none;
             border-radius: 8px;
+            z-index: 1;
+        }
+
+        .bg-starfield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-star {
+            position: absolute;
+            background: white;
+            clip-path: polygon(50% 0%, 55% 45%, 100% 50%, 55% 55%, 50% 100%, 45% 55%, 0% 50%, 45% 45%);
+            opacity: 0;
+            filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.9));
+            animation: starFadeIn 2s ease-out forwards, starTwinkle 3s ease-in-out infinite;
+        }
+
+        @keyframes starFadeIn {
+            0% { 
+                opacity: 0; 
+                transform: scale(0) rotate(0deg); 
+            }
+            100% { 
+                opacity: 0.6; 
+                transform: scale(1) rotate(15deg); 
+            }
+        }
+
+        @keyframes starTwinkle {
+            0%, 100% { 
+                opacity: 0.6; 
+                transform: scale(1) rotate(15deg); 
+            }
+            50% { 
+                opacity: 0.3; 
+                transform: scale(0.8) rotate(15deg); 
+            }
         }
 
         .star-container {
@@ -73,12 +115,11 @@
             position: relative;
             padding: 0px;
             top: -4%;
+            z-index: 2;
         }
 
         @keyframes fadeInStar {
-            to {
-                opacity: 1;
-            }
+            to { opacity: 1; }
         }
 
         .star-container::before {
@@ -91,12 +132,8 @@
         }
 
         @keyframes pulse {
-            0%, 100% {
-                opacity: 0.5;
-            }
-            50% {
-                opacity: 0.8;
-            }
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
         }
 
         .star-container img {
@@ -113,17 +150,12 @@
             animation: fadeInText 0.8s ease-out 2s forwards;
             position: relative;
             margin-bottom: 60px;
+            z-index: 2;
         }
 
         @keyframes fadeInText {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .polaris-text {
@@ -152,15 +184,9 @@
         }
 
         @keyframes shimmer {
-            0% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-            100% {
-                background-position: 0% 50%;
-            }
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .polaris-text::after {
@@ -193,12 +219,11 @@
             letter-spacing: 3px;
             opacity: 0;
             animation: fadeIn 0.5s ease-out 2.8s forwards;
+            z-index: 2;
         }
 
         @keyframes fadeIn {
-            to {
-                opacity: 1;
-            }
+            to { opacity: 1; }
         }
     </style>
 </head>
@@ -208,6 +233,8 @@
     </audio>
 
     <div class="splash-container">
+        <div class="bg-starfield" id="starfield"></div>
+
         <div class="star-container">
             <img src="./assets/polaris.svg" alt="Polaris Star" id="polarisStarImage">
         </div>
@@ -218,13 +245,32 @@
     </div>
 
     <script>
-        // Play startup sound once when splash screen loads
         document.addEventListener('DOMContentLoaded', () => {
+            const starfield = document.getElementById('starfield');
+            const starCount = 50; 
+
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('bg-star');
+                
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                star.style.left = `${x}%`;
+                star.style.top = `${y}%`;
+                
+                const size = Math.random() * 12 + 4; 
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                
+                const startDelay = 1500 + (Math.random() * 1500);
+                star.style.animationDelay = `${startDelay}ms, ${startDelay + 2000}ms`;
+
+                starfield.appendChild(star);
+            }
+
             const audio = document.getElementById('startupSound');
             if (audio) {
-                audio.volume = 0.8; // Set volume to 50%
-
-                // O setTimeout cria o atraso de 2000ms (2 segundos)
+                audio.volume = 0.8;
                 setTimeout(() => {
                     audio.play().catch(error => {
                         console.log('Audio playback failed:', error);
@@ -233,6 +279,5 @@
             }
         });
     </script>
-
 </body>
 </html>

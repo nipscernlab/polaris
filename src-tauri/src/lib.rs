@@ -3,7 +3,7 @@ mod file_system;
 mod terminal;
 
 use commands::*;
-use tauri::{Manager, Window};
+use tauri::Manager;
 use std::time::Duration;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

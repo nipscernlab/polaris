@@ -11,7 +11,7 @@ const commands = [
     },
     {
         id: 'editor.split',
-        icon: 'splitscreen',
+        icon: 'splitscreen_right',
         title: 'Split Editor',
         description: 'Split the editor into multiple panes',
         action: () => splitEditor()

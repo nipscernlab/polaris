@@ -61,7 +61,7 @@
                 filter="url(#luminousGlow)" 
                 class="trail-element" />
           <g class="star-rotator">
-            <path d="M 0 -35 L 10 -10 L 35 -10 L 14 7 L 21 32 L 0 17 L -21 32 L -14 7 L -35 -10 L -10 -10 Z" 
+            <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
                   fill="white" 
                   stroke="white" 
                   stroke-width="3" 
@@ -82,7 +82,7 @@
                 filter="url(#luminousGlow)" 
                 class="trail-element" />      
           <g class="star-rotator">
-            <path d="M 0 -35 L 10 -10 L 35 -10 L 14 7 L 21 32 L 0 17 L -21 32 L -14 7 L -35 -10 L -10 -10 Z" 
+            <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
                   fill="white" 
                   stroke="white" 
                   stroke-width="3" 
@@ -103,7 +103,7 @@
                 filter="url(#luminousGlow)" 
                 class="trail-element" />      
           <g class="star-rotator">
-            <path d="M 0 -35 L 10 -10 L 35 -10 L 14 7 L 21 32 L 0 17 L -21 32 L -14 7 L -35 -10 L -10 -10 Z" 
+            <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
                   fill="white" 
                   stroke="white" 
                   stroke-width="3" 

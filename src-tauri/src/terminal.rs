@@ -1,5 +1,5 @@
 use std::process::{Command, Stdio};
-use std::io::{self, Read};
+use std::io::{self};
 
 /// Execute a terminal command and return the output
 pub fn execute_command(command: &str) -> io::Result<String> {

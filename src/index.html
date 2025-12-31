@@ -42,16 +42,34 @@
 
         <!-- Main Layout -->
         <div class="main-layout">
-            <!-- Sidebar -->
+            <div class="activity-bar">
+                <div class="activity-group-top">
+                    <button class="activity-item active" id="toggleSidebarBtn" title="Explorer">
+                        <span class="material-symbols-outlined">folder</span>
+                    </button>
+                    
+                    <button class="activity-item" title="Search">
+                        <span class="material-symbols-outlined">search</span>
+                    </button>
+                </div>
+
+                <div class="activity-group-bottom">
+                    <button class="activity-item" title="Settings">
+                        <span class="material-symbols-outlined">settings</span>
+                    </button>
+                </div>
+            </div>
+
             <div class="sidebar" id="sidebar">
                 <div class="sidebar-header">
                     <div class="sidebar-title">
-                        <span class="material-symbols-outlined">folder</span>
                         <span>Explorer</span>
                     </div>
-                    <button class="sidebar-action" id="openFolderBtn" title="Open Folder">
-                        <span class="material-symbols-outlined">folder_open</span>
-                    </button>
+                    <div class="sidebar-actions">
+                        <button class="sidebar-action" id="openFolderBtn" title="Open Folder">
+                            <span class="material-symbols-outlined">folder_open</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="sidebar-content">
                     <div class="file-tree" id="fileTree">
@@ -64,10 +82,8 @@
                 </div>
             </div>
 
-            <!-- Editor Area -->
             <div class="editor-area" id="editorArea">
                 <div class="editor-container" id="editorContainer">
-                    <!-- Editor instances will be created here dynamically -->
                     <div class="welcome-screen" id="welcomeScreen">
                         <div class="welcome-content">
                             <svg width="80" height="80" viewBox="0 0 24 24" fill="none">

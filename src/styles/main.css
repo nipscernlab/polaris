@@ -183,8 +183,8 @@ html, body {
 /* ===== SIDEBAR WITH RESIZER ===== */
 .sidebar {
     width: 280px;
-    min-width: 200px;
-    max-width: 600px;
+    min-width: 2px;
+    max-width: 1200px;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
     display: flex;
@@ -212,6 +212,22 @@ html, body {
 
 .sidebar.resizing::after {
     background: var(--accent);
+}
+
+.sidebar.resizing {
+    will-change: width;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.sidebar.resizing .sidebar-content,
+.sidebar.resizing .sidebar-header {
+    pointer-events: none;
+}
+
+.sidebar.resizing::after {
+    background: var(--accent);
+    opacity: 1;
 }
 
 .sidebar-header {
@@ -320,13 +336,13 @@ html, body {
 }
 
 .editor-header {
-    height: 40px;
+    height: 44px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 8px;
+    padding: 4px 12px;
 }
 
 .editor-tabs {
@@ -572,6 +588,78 @@ html, body {
     gap: 12px;
     font-size: 12px;
     color: var(--text-tertiary);
+}
+
+/* ===== ACTIVITY BAR (VERTICAL TOOLBAR) ===== */
+.activity-bar {
+    width: 48px; /* Largura padrão estilo VS Code */
+    height: 100%;
+    background: var(--bg-primary); /* Fundo mais escuro para contraste */
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Separa os grupos topo/base */
+    flex-shrink: 0;
+    z-index: 20;
+}
+
+.activity-group-top,
+.activity-group-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.activity-item {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-muted); /* Cor mais apagada para inativos */
+    cursor: pointer;
+    position: relative;
+    transition: all var(--transition);
+}
+
+.activity-item:hover {
+    color: var(--text-primary);
+}
+
+/* Estado Ativo (ícone selecionado) */
+.activity-item.active {
+    color: var(--text-primary);
+}
+
+/* Indicador lateral de seleção (barrinha colorida à esquerda) */
+.activity-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    background: var(--accent);
+}
+
+/* Ajuste de tamanho dos ícones na barra principal */
+.activity-item .material-symbols-outlined {
+    font-size: 24px; /* Ícones ligeiramente maiores que o padrão */
+    opacity: 0.8;
+}
+
+.activity-item:hover .material-symbols-outlined,
+.activity-item.active .material-symbols-outlined {
+    opacity: 1;
+}
+
+/* Ajuste fino para a Sidebar quando a Activity Bar existe */
+/* Remove a borda esquerda da sidebar se houver conflito visual, 
+   mas geralmente a borda direita da Activity Bar já resolve. */
+.sidebar {
+    border-left: none; 
 }
 
 /* ===== STATUSBAR ===== */

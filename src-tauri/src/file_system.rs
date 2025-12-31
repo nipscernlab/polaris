@@ -2,7 +2,7 @@ use crate::commands::{FileNode, ProcessorConfig, ProjectResult};
 use serde_json::json;
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Build a file tree structure from a directory
 pub fn build_file_tree(path: &Path) -> io::Result<FileNode> {
