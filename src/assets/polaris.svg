@@ -1,35 +1,67 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" shape-rendering="geometricPrecision">
   <style>
-    /* --- ANIMAÇÕES --- */
-    .shooting-star-entity {
+    /* Estrela Principal - Rotação mais lenta (1.5 voltas) */
+    .primary-star-entity {
       animation: flightPath 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
       transform-origin: center;
     }
-    .star-camera-zoom {
+    .primary-star-zoom {
       animation: cameraZoom 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
       transform-origin: 0 0;
     }
-    .star-rotator {
-      animation: cinematicSpin 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    .primary-star-rotator {
+      animation: primarySpin 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
       transform-origin: 0 0;
     }
-    /* Define o tamanho do traço para permitir a animação de desenhar/apagar */
-    .trail-element {
-      stroke-dasharray: 400;
-      stroke-dashoffset: 400;
-      animation: trailDynamics 9.6s cubic-bezier(0.2, 0, 0.3, 1) forwards;
+    .primary-trail {
+      stroke-dasharray: 420;
+      stroke-dashoffset: 420;
+      animation: primaryTrail 9.6s cubic-bezier(0.2, 0, 0.2, 1) forwards;
     }
 
-    /* Estrela viaja e PARA (repouso) aos 90% */
+    /* Estrela Irmã - Rotação média (2.5 voltas) */
+    .sister-star-entity {
+      animation: flightPath 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: center;
+    }
+    .sister-star-zoom {
+      animation: cameraZoom 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: 0 0;
+    }
+    .sister-star-rotator {
+      animation: sisterSpin 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: 0 0;
+    }
+    .sister-trail {
+      stroke-dasharray: 420;
+      stroke-dashoffset: 420;
+      animation: sisterTrail 9.6s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+    }
+
+    /* Estrela Intermediária - Rotação rápida (3.5 voltas) */
+    .intermediate-star-entity {
+      animation: flightPath 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: center;
+    }
+    .intermediate-star-zoom {
+      animation: cameraZoom 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: 0 0;
+    }
+    .intermediate-star-rotator {
+      animation: intermediateSpin 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: 0 0;
+    }
+    .intermediate-trail {
+      stroke-dasharray: 420;
+      stroke-dashoffset: 420;
+      animation: intermediateTrail 9.6s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+    }
+
+    /* Movimento comum */
     @keyframes flightPath {
       0% { opacity: 0; transform: translate(-300px, -300px); }
       12% { opacity: 1; }
       90%, 100% { opacity: 1; transform: translate(500px, 500px); }
-    }
-
-    @keyframes cinematicSpin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
 
     @keyframes cameraZoom {
@@ -37,29 +69,84 @@
       100% { transform: scale(5.5); }
     }
 
-    /* LÓGICA DO RASTRO:
-       0% -> 15%: Aparece e preenche (Offset 400 -> 0)
-       15% -> 90%: Permanece cheio acompanhando a estrela
-       90% -> 100%: A estrela parou. O offset vai para -400. 
-                    Isso faz a cauda "correr" até a cabeça da estrela.
-    */
-    @keyframes trailDynamics {
+    /* Rotações diferentes - todas param em 0deg (múltiplos de 360) */
+    @keyframes primarySpin {
+      0% { transform: rotate(0deg); }
+      85% { transform: rotate(540deg); } /* 1.5 voltas */
+      100% { transform: rotate(540deg); }
+    }
+
+    @keyframes sisterSpin {
+      0% { transform: rotate(0deg); }
+      85% { transform: rotate(900deg); } /* 2.5 voltas */
+      100% { transform: rotate(900deg); }
+    }
+
+    @keyframes intermediateSpin {
+      0% { transform: rotate(0deg); }
+      85% { transform: rotate(1260deg); } /* 3.5 voltas */
+      100% { transform: rotate(1260deg); }
+    }
+
+    /* --- Rastros Modificados (Apenas Fade Out, sem Catchup) --- */
+    
+    @keyframes primaryTrail {
       0% { 
-        stroke-dashoffset: 400; 
+        stroke-dashoffset: 420; 
         opacity: 0; 
       }
-      15% { 
+      18% { 
         opacity: 1; 
         stroke-dashoffset: 0; 
       }
-      /* Mantém o rastro visível e completo até o momento exato que a estrela para */
-      90% {
+      /* Mantém o rastro completo até começar a desacelerar */
+      88% {
         stroke-dashoffset: 0;
         opacity: 1;
       }
-      /* Animação final: O rastro encolhe para dentro da estrela e desaparece */
+      /* Fade out suave, mantendo o offset em 0 */
       100% { 
-        stroke-dashoffset: -400; 
+        stroke-dashoffset: 0; 
+        opacity: 0; 
+      }
+    }
+
+    @keyframes sisterTrail {
+      0% { 
+        stroke-dashoffset: 420; 
+        opacity: 0; 
+      }
+      18% { 
+        opacity: 0.9; 
+        stroke-dashoffset: 0; 
+      }
+      88% {
+        stroke-dashoffset: 0;
+        opacity: 0.9;
+      }
+      /* Fade out suave, mantendo o offset em 0 */
+      100% { 
+        stroke-dashoffset: 0; 
+        opacity: 0; 
+      }
+    }
+
+    @keyframes intermediateTrail {
+      0% { 
+        stroke-dashoffset: 420; 
+        opacity: 0; 
+      }
+      18% { 
+        opacity: 0.95; 
+        stroke-dashoffset: 0; 
+      }
+      88% {
+        stroke-dashoffset: 0;
+        opacity: 0.95;
+      }
+      /* Fade out suave, mantendo o offset em 0 */
+      100% { 
+        stroke-dashoffset: 0; 
         opacity: 0; 
       }
     }
@@ -67,80 +154,108 @@
   
   <defs>
     <filter id="luminousGlow" x="-500%" y="-500%" width="1100%" height="1100%">
-      <feGaussianBlur stdDeviation="2.5" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+      <feGaussianBlur stdDeviation="3.5" result="blur1" />
+      <feGaussianBlur stdDeviation="1.5" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur1" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
     </filter>
+    
+    <filter id="trailGlow" x="-500%" y="-500%" width="1100%" height="1100%">
+      <feGaussianBlur stdDeviation="4" result="blur1" />
+      <feGaussianBlur stdDeviation="2" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur1" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    
     <linearGradient id="beamTrail" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="white" stop-opacity="0" />
-      <stop offset="60%" stop-color="white" stop-opacity="0.4" />
+      <stop offset="30%" stop-color="rgba(255, 255, 255, 0.3)" />
+      <stop offset="65%" stop-color="rgba(255, 255, 255, 0.7)" />
       <stop offset="100%" stop-color="white" stop-opacity="1" />
     </linearGradient>
+    
+    <radialGradient id="starCore" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="white" stop-opacity="1" />
+      <stop offset="50%" stop-color="white" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="rgba(255, 255, 255, 0.9)" />
+    </radialGradient>
   </defs>
   
-  <g id="PrimaryStarGroup">
-      <g class="shooting-star-entity">
-        <g class="star-camera-zoom">
-          <line x1="-120" y1="-120" x2="-5" y2="-5" 
-                stroke="url(#beamTrail)" 
-                stroke-width="20" 
-                stroke-linecap="round" 
-                filter="url(#luminousGlow)" 
-                class="trail-element" />
-          <g class="star-rotator">
-            <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
-                  fill="white" 
-                  stroke="white" 
-                  stroke-width="3" 
-                  stroke-linejoin="miter" 
-                  stroke-miterlimit="10"
-                  filter="url(#luminousGlow)" />
-          </g>
+  <g id="PrimaryStarGroup" style="pointer-events: none; user-select: none;">
+    <g class="primary-star-entity">
+      <g class="primary-star-zoom">
+        <line x1="-120" y1="-120" x2="-5" y2="-5" 
+              stroke="url(#beamTrail)" 
+              stroke-width="24" 
+              stroke-linecap="round" 
+              filter="url(#trailGlow)" 
+              class="primary-trail"
+              style="pointer-events: none;" />
+        <g class="primary-star-rotator">
+          <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
+                fill="url(#starCore)" 
+                stroke="white" 
+                stroke-width="3.5" 
+                stroke-linejoin="miter" 
+                stroke-miterlimit="10"
+                filter="url(#luminousGlow)"
+                style="pointer-events: none;" />
         </g>
       </g>
+    </g>
   </g>
 
-  <g id="SisterStarGroup" transform="translate(-60, 160) scale(0.35)">
-      <g class="shooting-star-entity">
-        <g class="star-camera-zoom">
-          <line x1="-120" y1="-120" x2="-5" y2="-5" 
-                stroke="url(#beamTrail)" 
-                stroke-width="20" 
-                stroke-linecap="round" 
-                filter="url(#luminousGlow)" 
-                class="trail-element" />      
-          <g class="star-rotator">
-            <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
-                  fill="white" 
-                  stroke="white" 
-                  stroke-width="3" 
-                  stroke-linejoin="miter" 
-                  stroke-miterlimit="10"
-                  filter="url(#luminousGlow)" />
-          </g>
+  <g id="SisterStarGroup" transform="translate(-60, 160) scale(0.35)" style="pointer-events: none; user-select: none;">
+    <g class="sister-star-entity">
+      <g class="sister-star-zoom">
+        <line x1="-120" y1="-120" x2="-5" y2="-5" 
+              stroke="url(#beamTrail)" 
+              stroke-width="22" 
+              stroke-linecap="round" 
+              filter="url(#trailGlow)" 
+              class="sister-trail"
+              style="pointer-events: none;" />      
+        <g class="sister-star-rotator">
+          <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
+                fill="url(#starCore)" 
+                stroke="white" 
+                stroke-width="3.5" 
+                stroke-linejoin="miter" 
+                stroke-miterlimit="10"
+                filter="url(#luminousGlow)"
+                style="pointer-events: none;" />
         </g>
       </g>
+    </g>
   </g>
 
-  <g id="IntermediateStarGroup" transform="translate(-100, 320) scale(0.6)">
-      <g class="shooting-star-entity">
-        <g class="star-camera-zoom">
-          <line x1="-120" y1="-120" x2="-5" y2="-5" 
-                stroke="url(#beamTrail)" 
-                stroke-width="20" 
-                stroke-linecap="round" 
-                filter="url(#luminousGlow)" 
-                class="trail-element" />      
-          <g class="star-rotator">
-            <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
-                  fill="white" 
-                  stroke="white" 
-                  stroke-width="3" 
-                  stroke-linejoin="miter" 
-                  stroke-miterlimit="10"
-                  filter="url(#luminousGlow)" />
-          </g>
+  <g id="IntermediateStarGroup" transform="translate(-100, 320) scale(0.6)" style="pointer-events: none; user-select: none;">
+    <g class="intermediate-star-entity">
+      <g class="intermediate-star-zoom">
+        <line x1="-120" y1="-120" x2="-5" y2="-5" 
+              stroke="url(#beamTrail)" 
+              stroke-width="23" 
+              stroke-linecap="round" 
+              filter="url(#trailGlow)" 
+              class="intermediate-trail"
+              style="pointer-events: none;" />      
+        <g class="intermediate-star-rotator">
+          <path d="M 0 -35 Q 0 0 35 0 Q 0 0 0 35 Q 0 0 -35 0 Q 0 0 0 -35 Z" 
+                fill="url(#starCore)" 
+                stroke="white" 
+                stroke-width="3.5" 
+                stroke-linejoin="miter" 
+                stroke-miterlimit="10"
+                filter="url(#luminousGlow)"
+                style="pointer-events: none;" />
         </g>
       </g>
+    </g>
   </g>
-
 </svg>

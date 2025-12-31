@@ -12,6 +12,10 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         html, body {
@@ -22,45 +26,59 @@
             justify-content: center;
             background: transparent;
             overflow: hidden;
-            border-radius: 8px;
+            cursor: default;
         }
 
         .splash-container {
             width: 100%;
             height: 100%;
             background: linear-gradient(180deg, 
-                rgba(139, 92, 246, 0.05) 0%,
-                rgba(139, 92, 246, 0.2) 20%,
-                rgba(139, 92, 246, 0.5) 50%,
-                rgba(124, 58, 237, 0.8) 80%,
-                rgba(109, 40, 217, 1) 100%
+                rgba(139, 92, 246, 0.02) 0%,
+                rgba(139, 92, 246, 0.15) 25%,
+                rgba(139, 92, 246, 0.45) 55%,
+                rgba(124, 58, 237, 0.75) 85%,
+                rgba(109, 40, 217, 0.95) 100%
             );
-            border-radius: 8px;
+            border-radius: 12px;
             box-shadow: 
-                0 30px 80px rgba(0, 0, 0, 0.7),
-                0 10px 30px rgba(139, 92, 246, 0.4),
-                inset 0 1px 1px rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(167, 139, 250, 0.2);
+                0 35px 90px rgba(0, 0, 0, 0.75),
+                0 15px 40px rgba(139, 92, 246, 0.5),
+                inset 0 1px 2px rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.25);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             position: relative;
             overflow: hidden;
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(25px);
+            pointer-events: none;
         }
 
         .splash-container::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at 50% 30%, 
-                rgba(255, 255, 255, 0.08) 0%,
-                transparent 60%
+            background: radial-gradient(circle at 50% 25%, 
+                rgba(255, 255, 255, 0.1) 0%,
+                transparent 65%
             );
             pointer-events: none;
-            border-radius: 8px;
+            border-radius: 12px;
             z-index: 1;
+        }
+
+        .aurora-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: all;
+            z-index: 0;
+            opacity: 0.35;
+            filter: blur(8px);
+            mix-blend-mode: screen;
         }
 
         .bg-starfield {
@@ -70,16 +88,27 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: 0;
+            z-index: 1;
         }
 
         .bg-star {
             position: absolute;
             background: white;
-            clip-path: polygon(50% 0%, 55% 45%, 100% 50%, 55% 55%, 50% 100%, 45% 55%, 0% 50%, 45% 45%);
+            border-radius: 50%;
             opacity: 0;
-            filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.9));
-            animation: starFadeIn 2s ease-out forwards, starTwinkle 3s ease-in-out infinite;
+            box-shadow: 0 0 6px rgba(255, 255, 255, 1);
+            animation: starFadeIn 2.5s ease-out forwards, starTwinkle 4s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        .bg-star.diamond {
+            clip-path: polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%);
+            border-radius: 0;
+        }
+
+        .bg-star.cross {
+            clip-path: polygon(40% 0%, 60% 0%, 60% 40%, 100% 40%, 100% 60%, 60% 60%, 60% 100%, 40% 100%, 40% 60%, 0% 60%, 0% 40%, 40% 40%);
+            border-radius: 0;
         }
 
         @keyframes starFadeIn {
@@ -88,19 +117,19 @@
                 transform: scale(0) rotate(0deg); 
             }
             100% { 
-                opacity: 0.6; 
-                transform: scale(1) rotate(15deg); 
+                opacity: var(--star-opacity, 0.4); 
+                transform: scale(1) rotate(var(--star-rotation, 0deg)); 
             }
         }
 
         @keyframes starTwinkle {
             0%, 100% { 
-                opacity: 0.6; 
-                transform: scale(1) rotate(15deg); 
+                opacity: var(--star-opacity, 0.4);
+                transform: scale(1) rotate(var(--star-rotation, 0deg)); 
             }
             50% { 
-                opacity: 0.3; 
-                transform: scale(0.8) rotate(15deg); 
+                opacity: calc(var(--star-opacity, 0.4) * 0.5);
+                transform: scale(0.85) rotate(var(--star-rotation, 0deg)); 
             }
         }
 
@@ -110,12 +139,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            animation: fadeInStar 1s ease-out forwards;
+            animation: fadeInStar 1.2s ease-out forwards;
             opacity: 0;
             position: relative;
             padding: 0px;
-            top: -4%;
+            top: -3%;
             z-index: 2;
+            pointer-events: none;
         }
 
         @keyframes fadeInStar {
@@ -125,62 +155,72 @@
         .star-container::before {
             content: '';
             position: absolute;
-            inset: -20px;
-            background: radial-gradient(circle, rgba(167, 139, 250, 0.3) 0%, transparent 70%);
-            filter: blur(20px);
-            animation: pulse 1.6s ease-in-out infinite;
+            inset: -25px;
+            background: radial-gradient(circle, rgba(167, 139, 250, 0.35) 0%, transparent 70%);
+            filter: blur(25px);
+            animation: pulse 1.8s ease-in-out infinite;
+            pointer-events: none;
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 0.8; }
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 0.9; }
         }
 
         .star-container img {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            filter: drop-shadow(0 0 20px rgba(167, 139, 250, 0.6));
+            filter: drop-shadow(0 0 25px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
             position: relative;
             z-index: 1;
+            pointer-events: none;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
         }
 
         .text-container {
             opacity: 0;
-            animation: fadeInText 0.8s ease-out 2s forwards;
+            animation: fadeInText 1s ease-out 2.2s forwards;
             position: relative;
-            margin-bottom: 60px;
+            margin-bottom: 55px;
             z-index: 2;
+            pointer-events: none;
         }
 
         @keyframes fadeInText {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         .polaris-text {
             font-family: 'Cinzel', serif;
-            font-size: 62px;
+            font-size: 48px;
             font-weight: 900;
-            letter-spacing: 10px;
+            letter-spacing: 12px;
             background: linear-gradient(135deg,
                 #ffffff 0%,
-                #f0e6ff 15%,
-                #d4c5f9 25%,
-                #ffffff 35%,
-                #a78bfa 45%,
-                #ffffff 55%,
-                #d4c5f9 65%,
-                #f0e6ff 85%,
+                #f5f0ff 12%,
+                #ddd0fc 22%,
+                #ffffff 32%,
+                #b49dfc 42%,
+                #ffffff 52%,
+                #ddd0fc 68%,
+                #f5f0ff 88%,
                 #ffffff 100%
             );
             background-size: 300% 300%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: shimmer 3.2s ease-in-out infinite;
+            animation: shimmer 3.5s ease-in-out infinite;
             position: relative;
-            filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.3));
+            filter: drop-shadow(0 0 35px rgba(255, 255, 255, 0.4));
+            text-shadow: 0 0 40px rgba(167, 139, 250, 0.6);
+            pointer-events: none;
+            margin-bottom: 20px;
         }
 
         @keyframes shimmer {
@@ -194,32 +234,35 @@
             position: absolute;
             inset: 0;
             background: linear-gradient(135deg,
-                rgba(255, 255, 255, 0.8) 0%,
-                rgba(255, 255, 255, 0.4) 25%,
-                rgba(167, 139, 250, 0.6) 50%,
-                rgba(255, 255, 255, 0.4) 75%,
-                rgba(255, 255, 255, 0.8) 100%
+                rgba(255, 255, 255, 0.9) 0%,
+                rgba(255, 255, 255, 0.5) 22%,
+                rgba(180, 157, 252, 0.7) 50%,
+                rgba(255, 255, 255, 0.5) 78%,
+                rgba(255, 255, 255, 0.9) 100%
             );
             background-size: 300% 300%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            filter: blur(2px);
-            animation: shimmer 3.2s ease-in-out infinite;
+            filter: blur(2.5px);
+            animation: shimmer 3.5s ease-in-out infinite;
             z-index: -1;
+            pointer-events: none;
         }
 
         .version {
             position: absolute;
-            bottom: 30px;
+            bottom: 28px;
             font-family: 'Cormorant Garamond', serif;
-            font-size: 13px;
-            font-weight: 300;
-            color: rgba(255, 255, 255, 0.5);
-            letter-spacing: 3px;
+            font-size: 12px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.55);
+            letter-spacing: 4px;
             opacity: 0;
-            animation: fadeIn 0.5s ease-out 2.8s forwards;
+            animation: fadeIn 0.6s ease-out 3s forwards;
             z-index: 2;
+            text-transform: uppercase;
+            pointer-events: none;
         }
 
         @keyframes fadeIn {
@@ -233,41 +276,214 @@
     </audio>
 
     <div class="splash-container">
+        <canvas id="auroraCanvas" class="aurora-canvas"></canvas>
         <div class="bg-starfield" id="starfield"></div>
 
         <div class="star-container">
-            <img src="./assets/polaris.svg" alt="Polaris Star" id="polarisStarImage">
+            <img src="./assets/polaris.svg" alt="Polaris Star" id="polarisStarImage" draggable="false">
         </div>
         <div class="text-container">
             <h1 class="polaris-text">POLARIS</h1>
         </div>
-        <div class="version">VERSION 1.0.0</div>
+        <div class="version">Version 1.0.0</div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
     <script>
+        // Aurora Boreal Effect with Mouse Interaction
+        class Vector {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+            }
+            
+            setAngle(angle) {
+                const length = this.getLength();
+                this.x = Math.cos(angle) * length;
+                this.y = Math.sin(angle) * length;
+            }
+            
+            setLength(length) {
+                const angle = this.getAngle();
+                this.x = Math.cos(angle) * length;
+                this.y = Math.sin(angle) * length;
+            }
+            
+            getLength() {
+                return Math.sqrt(this.x * this.x + this.y * this.y);
+            }
+            
+            getAngle() {
+                return Math.atan2(this.y, this.x);
+            }
+            
+            addTo(v) {
+                this.x += v.x;
+                this.y += v.y;
+            }
+        }
+
+        class FlowField {
+            constructor(w, h, settings = {}) {
+                this.settings = { frequency: 0.08, ...settings };
+                this.w = w || 10;
+                this.h = h || 10;
+                this.time = 0;
+                this.build();
+            }
+            
+            build() {
+                this.cols = Math.ceil(this.w);
+                this.rows = Math.ceil(this.h);
+                this.field = new Array(this.cols);
+                for (let x = 0; x < this.cols; x++) {
+                    this.field[x] = new Array(this.rows);
+                    for (let y = 0; y < this.rows; y++) {
+                        this.field[x][y] = new Vector(0, 0);
+                    }
+                }
+            }
+            
+            update(delta) {
+                this.time += delta;
+                const updateTime = this.time * this.settings.frequency / 1000;
+                for (let x = 0; x < this.field.length; x++) {
+                    for (let y = 0; y < this.field[x].length; y++) {
+                        const angle = this.noise.noise3D(x/20, y/20, updateTime) * Math.PI * 2;
+                        const length = this.noise.noise3D(x/10 + 40000, y/10 + 40000, updateTime);
+                        this.field[x][y].setAngle(angle);
+                        this.field[x][y].setLength(length);
+                        
+                        if (typeof this.manipulateVector === 'function') {
+                            this.manipulateVector(this.field[x][y], x, y);
+                        }
+                        
+                        if (typeof this.onDraw === 'function') {
+                            this.onDraw(this.field[x][y], x, y);
+                        }
+                    }
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Background stars
             const starfield = document.getElementById('starfield');
-            const starCount = 50; 
+            const starCount = 50;
+            const starTypes = ['circle', 'diamond', 'cross'];
+            const starPositions = [
+                { x: 12, y: 15 }, { x: 88, y: 12 }, { x: 25, y: 8 },
+                { x: 75, y: 18 }, { x: 45, y: 10 }, { x: 65, y: 25 },
+                { x: 18, y: 35 }, { x: 82, y: 28 }, { x: 38, y: 32 },
+                { x: 92, y: 45 }, { x: 8, y: 48 }, { x: 55, y: 38 },
+                { x: 28, y: 55 }, { x: 72, y: 52 }, { x: 15, y: 65 },
+                { x: 85, y: 62 }, { x: 42, y: 68 }, { x: 68, y: 72 },
+                { x: 22, y: 78 }, { x: 78, y: 85 }, { x: 35, y: 82 },
+                { x: 58, y: 88 }, { x: 12, y: 92 }, { x: 88, y: 95 },
+                { x: 48, y: 22 }, { x: 32, y: 42 }, { x: 62, y: 58 }
+            ];
 
             for (let i = 0; i < starCount; i++) {
                 const star = document.createElement('div');
+                const typeIndex = Math.floor(Math.random() * starTypes.length);
                 star.classList.add('bg-star');
+                if (starTypes[typeIndex] !== 'circle') {
+                    star.classList.add(starTypes[typeIndex]);
+                }
                 
-                const x = Math.random() * 100;
-                const y = Math.random() * 100;
+                const pos = starPositions[i % starPositions.length];
+                const spread = 5;
+                const x = pos.x + (Math.random() * spread - spread/2);
+                const y = pos.y + (Math.random() * spread - spread/2);
                 star.style.left = `${x}%`;
                 star.style.top = `${y}%`;
                 
-                const size = Math.random() * 12 + 4; 
+                const size = Math.random() * 3 + 1.5;
                 star.style.width = `${size}px`;
                 star.style.height = `${size}px`;
                 
-                const startDelay = 1500 + (Math.random() * 1500);
-                star.style.animationDelay = `${startDelay}ms, ${startDelay + 2000}ms`;
+                const opacity = Math.random() * 0.25 + 0.25;
+                const rotation = Math.random() * 360;
+                star.style.setProperty('--star-opacity', opacity);
+                star.style.setProperty('--star-rotation', `${rotation}deg`);
+                
+                const startDelay = 1800 + (Math.random() * 2000);
+                star.style.animationDelay = `${startDelay}ms, ${startDelay + 2500}ms`;
 
                 starfield.appendChild(star);
             }
 
+            // Aurora effect with mouse interaction
+            const canvas = document.getElementById('auroraCanvas');
+            const ctx = canvas.getContext('2d');
+            const container = canvas.parentElement;
+            
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            const tileSize = 50;
+            const cols = Math.ceil(canvas.width / tileSize);
+            const rows = Math.ceil(canvas.height / tileSize);
+            
+            const ctxScale = {
+                x: canvas.width / cols,
+                y: canvas.height / rows
+            };
+            
+            const heightColorScaling = 255 / rows;
+            const mouse = new Vector(canvas.width / 2, canvas.height / 2);
+            
+            const simplex = new SimplexNoise();
+            const ff = new FlowField(cols, rows, { frequency: 0.06 });
+            ff.noise = simplex;
+            
+            ff.onDraw = (vector, x, y) => {
+                if (x === 0 && y === 0) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+                
+                const xmove = vector.getLength() * Math.abs(vector.x);
+                const ymove = vector.getLength() * Math.abs(vector.y);
+                
+                const red = Math.round((-25 * xmove) + (90 * ymove) + (60 - (0.7 * y * heightColorScaling)));
+                const green = Math.round((200 * xmove) + (30 * ymove) - 70 + (0.5 * y * heightColorScaling));
+                const blue = Math.round((60 * xmove) + (40 * ymove) + (50 - (0.6 * y * heightColorScaling)) + (0.6 * y * heightColorScaling));
+                
+                ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, 0.65)`;
+                ctx.fillRect(x * ctxScale.x, y * ctxScale.y, ctxScale.x, ctxScale.y);
+            };
+            
+            ff.manipulateVector = (vector, x, y) => {
+                const pos = new Vector(
+                    (x * ctxScale.x) + (0.5 * ctxScale.x),
+                    (y * ctxScale.y) + (0.5 * ctxScale.y)
+                );
+                
+                const mouseEffect = new Vector(
+                    (mouse.x - pos.x) / canvas.width,
+                    (mouse.y - pos.y) / canvas.height
+                );
+                
+                vector.addTo(mouseEffect);
+                if (vector.getLength() > 1) vector.setLength(1);
+            };
+            
+            let lastStep = 0;
+            function step(time) {
+                ff.update(time - lastStep || 0);
+                lastStep = time;
+                requestAnimationFrame(step);
+            }
+            step();
+
+            // Mouse tracking for aurora interaction
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                mouse.x = e.clientX - rect.left;
+                mouse.y = e.clientY - rect.top;
+            });
+
+            // Audio
             const audio = document.getElementById('startupSound');
             if (audio) {
                 audio.volume = 0.8;
@@ -275,7 +491,7 @@
                     audio.play().catch(error => {
                         console.log('Audio playback failed:', error);
                     });
-                }, 3500); 
+                }, 3500);
             }
         });
     </script>
