@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" shape-rendering="geometricPrecision">
   <style>
-    /* --- ANIMAÇÕES (Mantidas do seu código original) --- */
+    /* --- ANIMAÇÕES --- */
     .shooting-star-entity {
       animation: flightPath 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
       transform-origin: center;
@@ -13,32 +13,58 @@
       animation: cinematicSpin 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
       transform-origin: 0 0;
     }
+    /* Define o tamanho do traço para permitir a animação de desenhar/apagar */
     .trail-element {
       stroke-dasharray: 400;
       stroke-dashoffset: 400;
       animation: trailDynamics 9.6s cubic-bezier(0.2, 0, 0.3, 1) forwards;
     }
+
+    /* Estrela viaja e PARA (repouso) aos 90% */
     @keyframes flightPath {
       0% { opacity: 0; transform: translate(-300px, -300px); }
       12% { opacity: 1; }
       90%, 100% { opacity: 1; transform: translate(500px, 500px); }
     }
+
     @keyframes cinematicSpin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
     @keyframes cameraZoom {
       0% { transform: scale(0.4); }
       100% { transform: scale(5.5); }
     }
-    /* VOLTOU PARA O FADE ORIGINAL (Rápido no final) */
+
+    /* LÓGICA DO RASTRO:
+       0% -> 15%: Aparece e preenche (Offset 400 -> 0)
+       15% -> 90%: Permanece cheio acompanhando a estrela
+       90% -> 100%: A estrela parou. O offset vai para -400. 
+                    Isso faz a cauda "correr" até a cabeça da estrela.
+    */
     @keyframes trailDynamics {
-      0% { stroke-dashoffset: 400; opacity: 0; }
-      15% { opacity: 1; stroke-dashoffset: 0; }
-      75% { stroke-dashoffset: 0; opacity: 1; }
-      100% { stroke-dashoffset: -400; opacity: 0; }
+      0% { 
+        stroke-dashoffset: 400; 
+        opacity: 0; 
+      }
+      15% { 
+        opacity: 1; 
+        stroke-dashoffset: 0; 
+      }
+      /* Mantém o rastro visível e completo até o momento exato que a estrela para */
+      90% {
+        stroke-dashoffset: 0;
+        opacity: 1;
+      }
+      /* Animação final: O rastro encolhe para dentro da estrela e desaparece */
+      100% { 
+        stroke-dashoffset: -400; 
+        opacity: 0; 
+      }
     }
   </style>
+  
   <defs>
     <filter id="luminousGlow" x="-500%" y="-500%" width="1100%" height="1100%">
       <feGaussianBlur stdDeviation="2.5" result="blur" />
@@ -65,7 +91,8 @@
                   fill="white" 
                   stroke="white" 
                   stroke-width="3" 
-                  stroke-linejoin="round" 
+                  stroke-linejoin="miter" 
+                  stroke-miterlimit="10"
                   filter="url(#luminousGlow)" />
           </g>
         </g>
@@ -86,7 +113,8 @@
                   fill="white" 
                   stroke="white" 
                   stroke-width="3" 
-                  stroke-linejoin="round" 
+                  stroke-linejoin="miter" 
+                  stroke-miterlimit="10"
                   filter="url(#luminousGlow)" />
           </g>
         </g>
@@ -107,7 +135,8 @@
                   fill="white" 
                   stroke="white" 
                   stroke-width="3" 
-                  stroke-linejoin="round" 
+                  stroke-linejoin="miter" 
+                  stroke-miterlimit="10"
                   filter="url(#luminousGlow)" />
           </g>
         </g>
