@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" shape-rendering="geometricPrecision">
   <style>
+    /* --- ANIMAÇÕES (Mantidas do seu código original) --- */
     .shooting-star-entity {
       animation: flightPath 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
       transform-origin: center;
@@ -30,6 +31,7 @@
       0% { transform: scale(0.4); }
       100% { transform: scale(5.5); }
     }
+    /* VOLTOU PARA O FADE ORIGINAL (Rápido no final) */
     @keyframes trailDynamics {
       0% { stroke-dashoffset: 400; opacity: 0; }
       15% { opacity: 1; stroke-dashoffset: 0; }
@@ -49,23 +51,67 @@
     </linearGradient>
   </defs>
   
-  <g class="shooting-star-entity">
-    <g class="star-camera-zoom">
-      <line x1="-120" y1="-120" x2="-5" y2="-5" 
-            stroke="url(#beamTrail)" 
-            stroke-width="20" 
-            stroke-linecap="round" 
-            filter="url(#luminousGlow)" 
-            class="trail-element" />
-            
-      <g class="star-rotator">
-        <path d="M 0 -35 L 10 -10 L 35 -10 L 14 7 L 21 32 L 0 17 L -21 32 L -14 7 L -35 -10 L -10 -10 Z" 
-              fill="white" 
-              stroke="white" 
-              stroke-width="3" 
-              stroke-linejoin="round" 
-              filter="url(#luminousGlow)" />
+  <g id="PrimaryStarGroup">
+      <g class="shooting-star-entity">
+        <g class="star-camera-zoom">
+          <line x1="-120" y1="-120" x2="-5" y2="-5" 
+                stroke="url(#beamTrail)" 
+                stroke-width="20" 
+                stroke-linecap="round" 
+                filter="url(#luminousGlow)" 
+                class="trail-element" />
+          <g class="star-rotator">
+            <path d="M 0 -35 L 10 -10 L 35 -10 L 14 7 L 21 32 L 0 17 L -21 32 L -14 7 L -35 -10 L -10 -10 Z" 
+                  fill="white" 
+                  stroke="white" 
+                  stroke-width="3" 
+                  stroke-linejoin="round" 
+                  filter="url(#luminousGlow)" />
+          </g>
+        </g>
       </g>
-    </g>
   </g>
+
+  <g id="SisterStarGroup" transform="translate(-60, 160) scale(0.35)">
+      <g class="shooting-star-entity">
+        <g class="star-camera-zoom">
+          <line x1="-120" y1="-120" x2="-5" y2="-5" 
+                stroke="url(#beamTrail)" 
+                stroke-width="20" 
+                stroke-linecap="round" 
+                filter="url(#luminousGlow)" 
+                class="trail-element" />      
+          <g class="star-rotator">
+            <path d="M 0 -35 L 10 -10 L 35 -10 L 14 7 L 21 32 L 0 17 L -21 32 L -14 7 L -35 -10 L -10 -10 Z" 
+                  fill="white" 
+                  stroke="white" 
+                  stroke-width="3" 
+                  stroke-linejoin="round" 
+                  filter="url(#luminousGlow)" />
+          </g>
+        </g>
+      </g>
+  </g>
+
+  <g id="IntermediateStarGroup" transform="translate(-100, 320) scale(0.6)">
+      <g class="shooting-star-entity">
+        <g class="star-camera-zoom">
+          <line x1="-120" y1="-120" x2="-5" y2="-5" 
+                stroke="url(#beamTrail)" 
+                stroke-width="20" 
+                stroke-linecap="round" 
+                filter="url(#luminousGlow)" 
+                class="trail-element" />      
+          <g class="star-rotator">
+            <path d="M 0 -35 L 10 -10 L 35 -10 L 14 7 L 21 32 L 0 17 L -21 32 L -14 7 L -35 -10 L -10 -10 Z" 
+                  fill="white" 
+                  stroke="white" 
+                  stroke-width="3" 
+                  stroke-linejoin="round" 
+                  filter="url(#luminousGlow)" />
+          </g>
+        </g>
+      </g>
+  </g>
+
 </svg>
