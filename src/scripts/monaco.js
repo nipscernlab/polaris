@@ -3,11 +3,12 @@ import { state, getEditorInstance, updateTabContent } from './state.js';
 import { renderInstanceTabs } from './tabs.js';
 
 let themesDefined = false;
+const modelCache = new Map(); // Global model cache to prevent duplicates
 
 // ===== MONACO EDITOR INITIALIZATION =====
 
 export async function initMonacoEditor(container, instanceId) {
-    console.log(`📝 Initializing Monaco Editor instance ${instanceId}...`);
+    console.log(`🔧 Initializing Monaco Editor instance ${instanceId}...`);
 
     if (!container) {
         console.error('Monaco editor container not found');
@@ -52,7 +53,7 @@ export async function initMonacoEditor(container, instanceId) {
                     'editor.inactiveSelectionBackground': '#8b5cf620',
                     'editorCursor.foreground': '#8b5cf6',
                     'editorLineNumber.foreground': '#3a3a4c',
-                    'editorLineNumber.activeForeground': '#b8b8cc',
+                    'editorLineNumber.activeForeground': '#8b8bcc',
                     'editor.findMatchBackground': '#8b5cf660',
                     'editorBracketMatch.background': '#2a2a38',
                     'editorBracketMatch.border': '#8b5cf6',
@@ -80,11 +81,15 @@ export async function initMonacoEditor(container, instanceId) {
             fontFamily: state.settings.fontFamily,
             tabSize: state.settings.tabSize,
             lineNumbers: state.settings.lineNumbers ? 'on' : 'off',
+            lineNumbersMinChars: 3,
+            glyphMargin: false,
+            folding: true,
+            lineDecorationsWidth: 10,
             minimap: {
                 enabled: state.settings.minimap
             },
             wordWrap: state.settings.wordWrap ? 'on' : 'off',
-            scrollBeyondLastLine: false,
+            scrollBeyondLastLine: true,
             automaticLayout: true,
             smoothScrolling: true,
             cursorBlinking: 'smooth',
@@ -94,12 +99,13 @@ export async function initMonacoEditor(container, instanceId) {
                 enabled: true
             },
             padding: {
-                top: state.settings.padding,
-                bottom: state.settings.padding
+                top: 16,
+                bottom: 16
             },
             scrollbar: {
                 verticalScrollbarSize: 10,
-                horizontalScrollbarSize: 10
+                horizontalScrollbarSize: 10,
+                useShadows: true
             }
         });
 
@@ -140,14 +146,24 @@ function setupEditorListeners(editor, instanceId) {
     editor.onDidFocusEditorText(() => {
         const { setFocusedInstance } = require('./state.js');
         setFocusedInstance(instanceId);
-        
-        // Update focus visuals
-        state.editorInstances.forEach(inst => {
-            const editorDiv = document.getElementById(`editor-${inst.id}`);
-            if (editorDiv) {
-                editorDiv.style.opacity = inst.id === instanceId ? '1' : '0.7';
+        updateFocusVisuals();
+    });
+}
+
+function updateFocusVisuals() {
+    state.editorInstances.forEach(instance => {
+        const editorDiv = document.getElementById(`editor-${instance.id}`);
+        if (editorDiv) {
+            if (instance.focused) {
+                editorDiv.style.opacity = '1';
+                editorDiv.style.borderLeft = '3px solid var(--accent)';
+                editorDiv.style.background = 'var(--bg-primary)';
+            } else {
+                editorDiv.style.opacity = '0.85';
+                editorDiv.style.borderLeft = '3px solid transparent';
+                editorDiv.style.background = '#08080d';
             }
-        });
+        }
     });
 }
 
@@ -160,14 +176,35 @@ export function setEditorModel(instanceId, filePath) {
     const tab = instance.tabs.get(filePath);
     if (!tab) return;
 
-    // Create or reuse model
-    if (!tab.model) {
+    // Check if model already exists in global cache
+    let model = modelCache.get(filePath);
+    
+    if (!model) {
+        // Create new model only if it doesn't exist
         const uri = monaco.Uri.file(filePath);
         const language = getLanguageFromPath(filePath);
-        tab.model = monaco.editor.createModel(tab.content, language, uri);
+        
+        // Check if a model with this URI already exists
+        const existingModel = monaco.editor.getModel(uri);
+        if (existingModel) {
+            model = existingModel;
+            model.setValue(tab.content);
+        } else {
+            model = monaco.editor.createModel(tab.content, language, uri);
+        }
+        
+        // Cache the model
+        modelCache.set(filePath, model);
+        tab.model = model;
+    } else {
+        // Reuse existing model and update content if needed
+        if (model.getValue() !== tab.content) {
+            model.setValue(tab.content);
+        }
+        tab.model = model;
     }
 
-    instance.editor.setModel(tab.model);
+    instance.editor.setModel(model);
     instance.activeTab = filePath;
 
     // Update status bar
@@ -192,14 +229,20 @@ function getLanguageFromPath(filePath) {
         'rs': 'rust',
         'toml': 'toml',
         'yaml': 'yaml',
+        'yml': 'yaml',
         'c': 'c',
-        'cmm': 'c',
         'cpp': 'cpp',
         'h': 'cpp',
+        'hpp': 'cpp',
         'java': 'java',
         'go': 'go',
         'sh': 'shell',
+        'bash': 'shell',
         'sql': 'sql',
+        'v': 'verilog',
+        'sv': 'systemverilog',
+        'vh': 'verilog',
+        'bat': 'bat',
         'txt': 'plaintext'
     };
 
@@ -226,8 +269,8 @@ export function applyEditorSettings() {
                     enabled: state.settings.minimap
                 },
                 padding: {
-                    top: state.settings.padding,
-                    bottom: state.settings.padding
+                    top: 16,
+                    bottom: 16
                 }
             });
         }
@@ -238,5 +281,24 @@ export function focusEditor(instanceId) {
     const instance = getEditorInstance(instanceId);
     if (instance && instance.editor) {
         instance.editor.focus();
+    }
+}
+
+// Clean up model cache when tab is closed
+export function disposeModel(filePath) {
+    const model = modelCache.get(filePath);
+    if (model) {
+        // Don't dispose if other instances are using it
+        let inUse = false;
+        state.editorInstances.forEach(instance => {
+            if (instance.tabs.has(filePath)) {
+                inUse = true;
+            }
+        });
+        
+        if (!inUse) {
+            model.dispose();
+            modelCache.delete(filePath);
+        }
     }
 }

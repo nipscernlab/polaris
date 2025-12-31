@@ -30,6 +30,8 @@ pub struct ProjectResult {
     pub spf_path: String,
 }
 
+// ===== FILE TREE OPERATIONS =====
+
 /// Get the file tree for a specific path
 #[tauri::command]
 pub async fn get_file_tree(path: String) -> Result<FileNode, String> {
@@ -38,6 +40,8 @@ pub async fn get_file_tree(path: String) -> Result<FileNode, String> {
     file_system::build_file_tree(&workspace_path)
         .map_err(|e| format!("Failed to build file tree: {}", e))
 }
+
+// ===== FILE OPERATIONS =====
 
 /// Read file contents
 #[tauri::command]
@@ -88,6 +92,8 @@ pub async fn move_item(source_path: String, target_path: String) -> Result<(), S
         .map_err(|e| format!("Failed to move item: {}", e))
 }
 
+// ===== PROJECT OPERATIONS =====
+
 /// Create a new project with SPF file and structure
 #[tauri::command]
 pub async fn create_project_structure(
@@ -107,6 +113,8 @@ pub async fn generate_processor(
     file_system::generate_processor_structure(&spf_path, &config)
         .map_err(|e| format!("Failed to generate processor: {}", e))
 }
+
+// ===== TERMINAL OPERATIONS =====
 
 /// Execute terminal command
 #[tauri::command]

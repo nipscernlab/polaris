@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { state, getEditorInstance, removeTab, resetTabModified } from './state.js';
-import { setEditorModel } from './monaco.js';
+import { setEditorModel, disposeModel } from './monaco.js';
 import { checkAndCloseEmptyInstances } from './splitEditor.js';
 
 // ===== TAB MANAGEMENT =====
@@ -77,6 +77,9 @@ export function closeTab(instanceId, filePath) {
 
 function performCloseTab(instanceId, filePath) {
     removeTab(instanceId, filePath);
+    
+    // Clean up model if not used elsewhere
+    disposeModel(filePath);
     
     const instance = getEditorInstance(instanceId);
     if (!instance) return;

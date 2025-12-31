@@ -12,7 +12,7 @@
     "tauri:build": "tauri build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.1.0",
+    "@tauri-apps/cli": "^2.9.6",
     "vite": "^7.2.6"
   },
   "dependencies": {

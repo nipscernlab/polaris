@@ -93,8 +93,11 @@ pub fn create_file(path: &str) -> io::Result<()> {
         fs::create_dir_all(parent)?;
     }
     
-    // Create empty file
-    fs::File::create(path)?;
+    // Create empty file if it doesn't exist
+    if !path_obj.exists() {
+        fs::File::create(path)?;
+    }
+    
     Ok(())
 }
 
@@ -105,9 +108,28 @@ pub fn create_folder(path: &str) -> io::Result<()> {
 
 /// Rename/move a file or folder
 pub fn rename_item(old_path: &str, new_path: &str) -> io::Result<()> {
+    let old_path_obj = Path::new(old_path);
+    let new_path_obj = Path::new(new_path);
+    
+    // Check if source exists
+    if !old_path_obj.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Source path not found"
+        ));
+    }
+    
     // Ensure parent directory of new path exists
-    if let Some(parent) = Path::new(new_path).parent() {
+    if let Some(parent) = new_path_obj.parent() {
         fs::create_dir_all(parent)?;
+    }
+    
+    // Check if target already exists
+    if new_path_obj.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "Target path already exists"
+        ));
     }
     
     fs::rename(old_path, new_path)
@@ -117,14 +139,21 @@ pub fn rename_item(old_path: &str, new_path: &str) -> io::Result<()> {
 pub fn delete_item(path: &str) -> io::Result<()> {
     let path_obj = Path::new(path);
     
+    if !path_obj.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Path not found"
+        ));
+    }
+    
     if path_obj.is_file() {
         fs::remove_file(path)
     } else if path_obj.is_dir() {
         fs::remove_dir_all(path)
     } else {
         Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Path not found"
+            io::ErrorKind::Other,
+            "Unknown file type"
         ))
     }
 }
@@ -133,6 +162,14 @@ pub fn delete_item(path: &str) -> io::Result<()> {
 pub fn move_item(source_path: &str, target_path: &str) -> io::Result<()> {
     let source = Path::new(source_path);
     let target = Path::new(target_path);
+    
+    // Check if source exists
+    if !source.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Source path not found"
+        ));
+    }
     
     // Ensure target parent directory exists
     if let Some(parent) = target.parent() {
