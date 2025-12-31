@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" shape-rendering="geometricPrecision">
+  <style>
+    .shooting-star-entity {
+      animation: flightPath 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: center;
+    }
+    .star-camera-zoom {
+      animation: cameraZoom 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: 0 0;
+    }
+    .star-rotator {
+      animation: cinematicSpin 9.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      transform-origin: 0 0;
+    }
+    .trail-element {
+      stroke-dasharray: 400;
+      stroke-dashoffset: 400;
+      animation: trailDynamics 9.6s cubic-bezier(0.2, 0, 0.3, 1) forwards;
+    }
+    @keyframes flightPath {
+      0% { opacity: 0; transform: translate(-300px, -300px); }
+      12% { opacity: 1; }
+      90%, 100% { opacity: 1; transform: translate(500px, 500px); }
+    }
+    @keyframes cinematicSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes cameraZoom {
+      0% { transform: scale(0.4); }
+      100% { transform: scale(5.5); }
+    }
+    @keyframes trailDynamics {
+      0% { stroke-dashoffset: 400; opacity: 0; }
+      15% { opacity: 1; stroke-dashoffset: 0; }
+      75% { stroke-dashoffset: 0; opacity: 1; }
+      100% { stroke-dashoffset: -400; opacity: 0; }
+    }
+  </style>
+  <defs>
+    <filter id="luminousGlow" x="-500%" y="-500%" width="1100%" height="1100%">
+      <feGaussianBlur stdDeviation="2.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <linearGradient id="beamTrail" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="white" stop-opacity="0" />
+      <stop offset="60%" stop-color="white" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="white" stop-opacity="1" />
+    </linearGradient>
+  </defs>
+  
+  <g class="shooting-star-entity">
+    <g class="star-camera-zoom">
+      <line x1="-120" y1="-120" x2="-5" y2="-5" 
+            stroke="url(#beamTrail)" 
+            stroke-width="20" 
+            stroke-linecap="round" 
+            filter="url(#luminousGlow)" 
+            class="trail-element" />
+            
+      <g class="star-rotator">
+        <path d="M 0 -35 L 10 -10 L 35 -10 L 14 7 L 21 32 L 0 17 L -21 32 L -14 7 L -35 -10 L -10 -10 Z" 
+              fill="white" 
+              stroke="white" 
+              stroke-width="3" 
+              stroke-linejoin="round" 
+              filter="url(#luminousGlow)" />
+      </g>
+    </g>
+  </g>
+</svg>

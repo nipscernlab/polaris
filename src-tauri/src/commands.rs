@@ -11,7 +11,6 @@ pub struct FileNode {
     pub children: Option<Vec<FileNode>>,
 }
 
-// === ADD THIS ATTRIBUTE BELOW ===
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")] 
 pub struct ProcessorConfig {
@@ -52,6 +51,41 @@ pub async fn read_file(path: String) -> Result<String, String> {
 pub async fn save_file(path: String, content: String) -> Result<(), String> {
     file_system::write_file_content(&path, &content)
         .map_err(|e| format!("Failed to save file: {}", e))
+}
+
+/// Create a new empty file
+#[tauri::command]
+pub async fn create_file(path: String) -> Result<(), String> {
+    file_system::create_file(&path)
+        .map_err(|e| format!("Failed to create file: {}", e))
+}
+
+/// Create a new folder
+#[tauri::command]
+pub async fn create_folder(path: String) -> Result<(), String> {
+    file_system::create_folder(&path)
+        .map_err(|e| format!("Failed to create folder: {}", e))
+}
+
+/// Rename a file or folder
+#[tauri::command]
+pub async fn rename_item(old_path: String, new_path: String) -> Result<(), String> {
+    file_system::rename_item(&old_path, &new_path)
+        .map_err(|e| format!("Failed to rename item: {}", e))
+}
+
+/// Delete a file or folder
+#[tauri::command]
+pub async fn delete_item(path: String) -> Result<(), String> {
+    file_system::delete_item(&path)
+        .map_err(|e| format!("Failed to delete item: {}", e))
+}
+
+/// Move a file or folder to a new location
+#[tauri::command]
+pub async fn move_item(source_path: String, target_path: String) -> Result<(), String> {
+    file_system::move_item(&source_path, &target_path)
+        .map_err(|e| format!("Failed to move item: {}", e))
 }
 
 /// Create a new project with SPF file and structure

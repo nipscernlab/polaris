@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POLARIS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        .splash-container {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, 
+                rgba(139, 92, 246, 0.05) 0%,
+                rgba(139, 92, 246, 0.2) 20%,
+                rgba(139, 92, 246, 0.5) 50%,
+                rgba(124, 58, 237, 0.8) 80%,
+                rgba(109, 40, 217, 1) 100%
+            );
+            border-radius: 8px;
+            box-shadow: 
+                0 30px 80px rgba(0, 0, 0, 0.7),
+                0 10px 30px rgba(139, 92, 246, 0.4),
+                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+        }
+
+        .splash-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 30%, 
+                rgba(255, 255, 255, 0.08) 0%,
+                transparent 60%
+            );
+            pointer-events: none;
+            border-radius: 8px;
+        }
+
+        .star-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeInStar 1s ease-out forwards;
+            opacity: 0;
+            position: relative;
+            padding: 0px;
+            top: -4%;
+        }
+
+        @keyframes fadeInStar {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .star-container::before {
+            content: '';
+            position: absolute;
+            inset: -20px;
+            background: radial-gradient(circle, rgba(167, 139, 250, 0.3) 0%, transparent 70%);
+            filter: blur(20px);
+            animation: pulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.5;
+            }
+            50% {
+                opacity: 0.8;
+            }
+        }
+
+        .star-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(167, 139, 250, 0.6));
+            position: relative;
+            z-index: 1;
+        }
+
+        .text-container {
+            opacity: 0;
+            animation: fadeInText 0.8s ease-out 2s forwards;
+            position: relative;
+            margin-bottom: 60px;
+        }
+
+        @keyframes fadeInText {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .polaris-text {
+            font-family: 'Cinzel', serif;
+            font-size: 62px;
+            font-weight: 900;
+            letter-spacing: 10px;
+            background: linear-gradient(135deg,
+                #ffffff 0%,
+                #f0e6ff 15%,
+                #d4c5f9 25%,
+                #ffffff 35%,
+                #a78bfa 45%,
+                #ffffff 55%,
+                #d4c5f9 65%,
+                #f0e6ff 85%,
+                #ffffff 100%
+            );
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3.2s ease-in-out infinite;
+            position: relative;
+            filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.3));
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .polaris-text::after {
+            content: 'POLARIS';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg,
+                rgba(255, 255, 255, 0.8) 0%,
+                rgba(255, 255, 255, 0.4) 25%,
+                rgba(167, 139, 250, 0.6) 50%,
+                rgba(255, 255, 255, 0.4) 75%,
+                rgba(255, 255, 255, 0.8) 100%
+            );
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: blur(2px);
+            animation: shimmer 3.2s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        .version {
+            position: absolute;
+            bottom: 30px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 13px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 3px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out 2.8s forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <audio id="startupSound" preload="auto">
+        <source src="./assets/startup.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="splash-container">
+        <div class="star-container">
+            <img src="./assets/polaris.svg" alt="Polaris Star" id="polarisStarImage">
+        </div>
+        <div class="text-container">
+            <h1 class="polaris-text">POLARIS</h1>
+        </div>
+        <div class="version">VERSION 1.0.0</div>
+    </div>
+
+    <script>
+        // Play startup sound once when splash screen loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const audio = document.getElementById('startupSound');
+            if (audio) {
+                audio.volume = 0.8; // Set volume to 50%
+
+                // O setTimeout cria o atraso de 2000ms (2 segundos)
+                setTimeout(() => {
+                    audio.play().catch(error => {
+                        console.log('Audio playback failed:', error);
+                    });
+                }, 3500); 
+            }
+        });
+    </script>
+
+</body>
+</html>

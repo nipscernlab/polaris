@@ -8,7 +8,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: './src/index.html'
+        main: path.resolve(__dirname, 'src/index.html'),
+        splash: path.resolve(__dirname, 'src/splash.html')
       }
     }
   },
