@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
-import { state, addTab } from './state.js';
+import { state, addTab, getFocusedInstance } from './state.js';
 import { setEditorModel } from './monaco.js';
 import { renderInstanceTabs, switchTab } from './tabs.js';
 import { ensureEditorExists, updateSplitButtons } from './splitEditor.js';
@@ -13,7 +13,7 @@ let contextMenu = null;
 // ===== INITIALIZATION =====
 
 export function initFileTree() {
-    console.log('📁 Initializing file tree...');
+    console.log('📂 Initializing file tree...');
     
     const fileTreeContainer = document.getElementById('fileTree');
     if (!fileTreeContainer) {
@@ -21,13 +21,8 @@ export function initFileTree() {
         return;
     }
 
-    // Initialize empty tree
     renderEmptyTree();
-    
-    // Setup context menu
     setupContextMenu();
-    
-    // Setup drag and drop
     setupDragAndDrop();
     
     console.log('✅ File tree initialized');
@@ -57,7 +52,6 @@ export async function refreshFileTree(folderPath) {
         const fileTree = await invoke('get_file_tree', { path: folderPath });
         state.fileTreeData = fileTree;
         
-        // Update or add to tree items
         const existingIndex = fileTreeItems.findIndex(item => item.path === fileTree.path);
         if (existingIndex !== -1) {
             fileTreeItems[existingIndex] = fileTree;
@@ -66,6 +60,12 @@ export async function refreshFileTree(folderPath) {
         }
         
         renderFileTree();
+        
+        // Restore highlight for active tab
+        const focusedInstance = getFocusedInstance();
+        if (focusedInstance && focusedInstance.activeTab) {
+            updateFileTreeHighlight(focusedInstance.activeTab);
+        }
     } catch (error) {
         console.error('Error loading file tree:', error);
         showError(fileTreeContainer);
@@ -90,7 +90,6 @@ function renderFileTree() {
 function createTreeElements(items, level) {
     const fragment = document.createDocumentFragment();
 
-    // Sort: Folders first, then files
     const sortedItems = [...items].sort((a, b) => {
         const aIsDir = isDirectoryItem(a);
         const bIsDir = isDirectoryItem(b);
@@ -114,7 +113,6 @@ function createTreeElements(items, level) {
         element.draggable = true;
         
         if (isDir) {
-            // Folder rendering - ALWAYS use chevron_right (rotation handled by CSS)
             element.classList.add('folder');
             element.innerHTML = `
                 <div class="expand-icon">
@@ -129,7 +127,6 @@ function createTreeElements(items, level) {
                 toggleFolder(element);
             });
         } else {
-            // File rendering
             const isSpfFile = item.name.endsWith('.spf');
             element.classList.add('file');
             
@@ -150,19 +147,16 @@ function createTreeElements(items, level) {
             });
         }
 
-        // Context menu on right-click
         element.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
             showContextMenu(e, item);
         });
 
-        // Drag events
         setupItemDragEvents(element, item);
 
         wrapper.appendChild(element);
 
-        // If folder, create children container
         if (isDir) {
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'file-tree-children';
@@ -220,19 +214,48 @@ function toggleFolder(element) {
     const wrapper = element.parentElement;
     const childrenContainer = wrapper.querySelector('.file-tree-children');
     
-    // Toggle expanded class
     element.classList.toggle('expanded');
     const isExpanded = element.classList.contains('expanded');
 
-    // Update folder icon only (chevron rotates via CSS)
     const folderIcon = element.querySelector('.folder-icon');
     if (folderIcon) {
         folderIcon.textContent = isExpanded ? 'folder_open' : 'folder';
     }
 
-    // Show/hide children
     if (childrenContainer) {
         childrenContainer.style.display = isExpanded ? 'block' : 'none';
+    }
+}
+
+// ===== FILE TREE HIGHLIGHT SYNC =====
+
+export function updateFileTreeHighlight(filePath) {
+    // Remove all previous highlights
+    document.querySelectorAll('.file-tree-item.active').forEach(el => {
+        el.classList.remove('active');
+    });
+
+    if (!filePath) return;
+
+    // Add highlight to the active file
+    const fileElement = document.querySelector(`.file-tree-item[data-path="${filePath}"]`);
+    if (fileElement) {
+        fileElement.classList.add('active');
+        
+        // Ensure parent folders are expanded
+        let parent = fileElement.parentElement;
+        while (parent) {
+            if (parent.hasAttribute('data-item-wrapper')) {
+                const folderElement = parent.querySelector('.file-tree-item.folder');
+                if (folderElement && !folderElement.classList.contains('expanded')) {
+                    toggleFolder(folderElement);
+                }
+            }
+            parent = parent.parentElement;
+        }
+        
+        // Scroll into view if needed
+        fileElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 }
 
@@ -255,7 +278,7 @@ async function openFile(item) {
         // If tab already exists in THIS instance, just switch to it
         if (instance.tabs.has(filePath)) {
             switchTab(instanceId, filePath);
-            updateFileTreeSelection(filePath);
+            updateFileTreeHighlight(filePath);
             return;
         }
 
@@ -267,23 +290,12 @@ async function openFile(item) {
         renderInstanceTabs(instanceId);
         setEditorModel(instanceId, filePath);
         
-        updateFileTreeSelection(filePath);
+        updateFileTreeHighlight(filePath);
         updateSplitButtons();
         
         console.log('✅ File opened:', fileName);
     } catch (error) {
         console.error('Error opening file:', error);
-    }
-}
-
-function updateFileTreeSelection(filePath) {
-    document.querySelectorAll('.file-tree-item.active').forEach(el => {
-        el.classList.remove('active');
-    });
-
-    const fileElement = document.querySelector(`.file-tree-item[data-path="${filePath}"]`);
-    if (fileElement) {
-        fileElement.classList.add('active');
     }
 }
 
@@ -293,7 +305,6 @@ function setupContextMenu() {
     const container = document.getElementById('fileTree');
     if (!container) return;
 
-    // Right-click on empty space
     container.addEventListener('contextmenu', (e) => {
         if (e.target.id === 'fileTree' || e.target.closest('.empty-explorer')) {
             e.preventDefault();
@@ -301,7 +312,6 @@ function setupContextMenu() {
         }
     });
 
-    // Close menu on click outside
     document.addEventListener('click', () => {
         hideContextMenu();
     });
@@ -319,12 +329,10 @@ function showContextMenu(event, item) {
     const menuItems = [];
 
     if (!item) {
-        // Empty space or root - only show new file
         menuItems.push(
             { label: 'New File', icon: 'description', action: () => createNewFile(state.workspace) }
         );
     } else if (isDirectoryItem(item)) {
-        // Folder menu
         menuItems.push(
             { label: 'New File', icon: 'description', action: () => createNewFile(item.path) },
             { label: 'New Folder', icon: 'folder', action: () => createNewFolder(item.path) },
@@ -332,7 +340,6 @@ function showContextMenu(event, item) {
             { label: 'Delete', icon: 'delete', action: () => deleteItem(item), danger: true }
         );
     } else {
-        // File menu
         menuItems.push(
             { label: 'Rename', icon: 'edit', action: () => renameItem(item) },
             { label: 'Delete', icon: 'delete', action: () => deleteItem(item), danger: true }
@@ -360,7 +367,6 @@ function showContextMenu(event, item) {
 
     document.body.appendChild(contextMenu);
 
-    // Adjust position if menu goes off screen
     const rect = contextMenu.getBoundingClientRect();
     if (rect.right > window.innerWidth) {
         contextMenu.style.left = `${event.clientX - rect.width}px`;
@@ -401,7 +407,6 @@ async function createNewFile(parentPath = null) {
 }
 
 async function createNewFolder(parentPath) {
-    // Prompt for folder name
     const folderName = window.prompt('Enter folder name:');
     if (!folderName || folderName.trim() === '') return;
 
@@ -437,7 +442,6 @@ async function renameItem(item) {
     nameSpan.replaceWith(input);
     input.focus();
     
-    // Select filename without extension
     const dotIndex = oldName.lastIndexOf('.');
     if (dotIndex > 0) {
         input.setSelectionRange(0, dotIndex);
@@ -465,7 +469,6 @@ async function renameItem(item) {
                     newPath: newPath
                 });
 
-                // Refresh ONLY the affected part of tree
                 await refreshFileTree(state.workspace);
                 
                 console.log('✅ Renamed:', oldName, '->', newName);
@@ -494,14 +497,11 @@ async function renameItem(item) {
 async function deleteItem(item) {
     const itemType = isDirectoryItem(item) ? 'folder' : 'file';
     
-    // Use window.confirm instead of Tauri dialog to avoid permission issues
     const confirmed = window.confirm(`Are you sure you want to delete this ${itemType} "${item.name}"?`);
     if (!confirmed) return;
 
     try {
         await invoke('delete_item', { path: item.path });
-        
-        // Refresh tree WITHOUT collapsing
         await refreshFileTreePreservingState();
         
         console.log('✅ Deleted:', item.name);
@@ -512,17 +512,14 @@ async function deleteItem(item) {
 }
 
 async function refreshFileTreePreservingState() {
-    // Save expansion state
     const expandedPaths = new Set();
     document.querySelectorAll('.file-tree-item.expanded').forEach(el => {
         const path = el.getAttribute('data-path');
         if (path) expandedPaths.add(path);
     });
 
-    // Refresh tree
     await refreshFileTree(state.workspace);
 
-    // Restore expansion state
     setTimeout(() => {
         expandedPaths.forEach(path => {
             const element = document.querySelector(`.file-tree-item[data-path="${path}"]`);
@@ -561,7 +558,6 @@ function setupItemDragEvents(element, item) {
         draggedItem = null;
     });
 
-    // Only folders can be drop targets
     if (isDirectoryItem(item)) {
         element.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -595,7 +591,6 @@ async function moveItem(item, targetPath) {
         const pathSeparator = item.path.includes('/') ? '/' : '\\';
         const newPath = `${targetPath}${pathSeparator}${fileName}`;
 
-        // Check if source and target are the same
         if (item.path === newPath) {
             return;
         }
@@ -605,7 +600,6 @@ async function moveItem(item, targetPath) {
             targetPath: newPath
         });
 
-        // Refresh preserving state
         await refreshFileTreePreservingState();
         
         console.log('✅ Moved:', item.name, 'to', targetPath);
@@ -625,7 +619,5 @@ function showError(container) {
         </div>
     `;
 }
-
-// ===== EXPORT FUNCTIONS =====
 
 export { fileTreeItems };

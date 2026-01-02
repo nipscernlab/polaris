@@ -1,23 +1,34 @@
 import { invoke } from '@tauri-apps/api/core';
-import { state, getEditorInstance, removeTab, resetTabModified } from './state.js';
+import { state, getEditorInstance, removeTab, resetTabModified, setFocusedInstance } from './state.js';
 import { setEditorModel, disposeModel } from './monaco.js';
 import { checkAndCloseEmptyInstances } from './splitEditor.js';
+import { updateFileTreeHighlight } from './fileTree.js';
 
-// ===== TAB MANAGEMENT =====
+// ===== TAB RENDERING =====
 
 export function renderInstanceTabs(instanceId) {
     const instance = getEditorInstance(instanceId);
-    if (!instance) return;
+    if (!instance) {
+        console.error(`Instance ${instanceId} not found for tab rendering`);
+        return;
+    }
 
     const tabsContainer = document.getElementById(`tabs-${instanceId}`);
-    if (!tabsContainer) return;
+    if (!tabsContainer) {
+        console.error(`Tabs container for instance ${instanceId} not found`);
+        return;
+    }
 
     tabsContainer.innerHTML = '';
 
-    instance.tabs.forEach((tab, filePath) => {
+    // Convert tabs to array and maintain order
+    const tabsArray = Array.from(instance.tabs.entries());
+
+    tabsArray.forEach(([filePath, tab]) => {
         const tabElement = document.createElement('div');
         tabElement.className = 'editor-tab';
         tabElement.setAttribute('data-path', filePath);
+        tabElement.setAttribute('data-instance', instanceId);
         
         if (filePath === instance.activeTab) {
             tabElement.classList.add('active');
@@ -29,13 +40,14 @@ export function renderInstanceTabs(instanceId) {
 
         tabElement.innerHTML = `
             <span class="material-symbols-outlined">description</span>
-            <span>${tab.name}</span>
+            <span class="tab-name">${tab.name}</span>
+            ${tab.modified ? '<span class="modified-indicator">●</span>' : ''}
             <button class="tab-close">
                 <span class="material-symbols-outlined">close</span>
             </button>
         `;
 
-        // Tab click
+        // Tab click - switch to this tab
         tabElement.addEventListener('click', (e) => {
             if (!e.target.closest('.tab-close')) {
                 switchTab(instanceId, filePath);
@@ -53,22 +65,60 @@ export function renderInstanceTabs(instanceId) {
     });
 }
 
+export function renderAllInstanceTabs() {
+    state.editorInstances.forEach(instance => {
+        renderInstanceTabs(instance.id);
+    });
+}
+
+// ===== TAB SWITCHING =====
+
 export function switchTab(instanceId, filePath) {
     const instance = getEditorInstance(instanceId);
-    if (!instance || instance.activeTab === filePath) return;
+    if (!instance) {
+        console.error(`Instance ${instanceId} not found`);
+        return;
+    }
 
-    instance.activeTab = filePath;
+    if (instance.activeTab === filePath) {
+        // Already active, just focus
+        if (instance.editor) {
+            instance.editor.focus();
+        }
+        return;
+    }
+
+    const tab = instance.tabs.get(filePath);
+    if (!tab) {
+        console.error(`Tab ${filePath} not found in instance ${instanceId}`);
+        return;
+    }
+
+    // Set focus to this instance
+    setFocusedInstance(instanceId);
+
+    // Set the model for this tab
     setEditorModel(instanceId, filePath);
+    
+    // Re-render tabs to update active state
     renderInstanceTabs(instanceId);
+    
+    // Update file tree highlight
+    updateFileTreeHighlight(filePath);
+    
+    console.log(`Switched to tab: ${tab.name} in instance ${instanceId}`);
 }
+
+// ===== TAB CLOSING =====
 
 export function closeTab(instanceId, filePath) {
     const instance = getEditorInstance(instanceId);
     if (!instance) return;
 
     const tab = instance.tabs.get(filePath);
+    if (!tab) return;
     
-    if (tab && tab.modified) {
+    if (tab.modified) {
         showUnsavedChangesModal(instanceId, filePath, tab.name);
     } else {
         performCloseTab(instanceId, filePath);
@@ -76,18 +126,29 @@ export function closeTab(instanceId, filePath) {
 }
 
 function performCloseTab(instanceId, filePath) {
-    removeTab(instanceId, filePath);
-    
-    // Clean up model if not used elsewhere
-    disposeModel(filePath);
-    
     const instance = getEditorInstance(instanceId);
     if (!instance) return;
 
+    console.log(`Closing tab: ${filePath} from instance ${instanceId}`);
+
+    // Remove tab from this instance only
+    removeTab(instanceId, filePath);
+    
+    // Try to dispose the global model (will only dispose if no other instance uses it)
+    disposeModel(filePath);
+    
+    // Re-render this instance's tabs
     renderInstanceTabs(instanceId);
 
-    // If no tabs left, check if we should close this instance
+    // Handle active tab switching
     if (instance.tabs.size === 0) {
+        // No more tabs in this instance
+        instance.activeTab = null;
+        if (instance.editor) {
+            instance.editor.setModel(null);
+        }
+        
+        // Check if we should close this empty instance
         checkAndCloseEmptyInstances();
         
         // If all instances are closed, show welcome screen
@@ -96,11 +157,25 @@ function performCloseTab(instanceId, filePath) {
             if (welcomeScreen) {
                 welcomeScreen.classList.remove('hidden');
             }
+            updateFileTreeHighlight(null);
         }
-    } else if (instance.activeTab) {
-        setEditorModel(instanceId, instance.activeTab);
+    } else {
+        // Switch to another tab
+        if (instance.activeTab === filePath || !instance.activeTab) {
+            // Need to switch to a different tab
+            const remainingTabs = Array.from(instance.tabs.keys());
+            if (remainingTabs.length > 0) {
+                const newActiveTab = remainingTabs[remainingTabs.length - 1];
+                switchTab(instanceId, newActiveTab);
+            }
+        } else {
+            // Active tab is still valid, just refresh the model
+            setEditorModel(instanceId, instance.activeTab);
+        }
     }
 }
+
+// ===== UNSAVED CHANGES MODAL =====
 
 function showUnsavedChangesModal(instanceId, filePath, fileName) {
     state.pendingCloseData = { instanceId, filePath };
@@ -119,29 +194,39 @@ function setupUnsavedButtons() {
     const dontSaveBtn = document.getElementById('dontSaveBtn');
     const cancelBtn = document.getElementById('cancelBtn');
 
+    // Remove old listeners by cloning
     if (saveBtn) {
-        saveBtn.onclick = async () => {
+        const newSaveBtn = saveBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+        
+        newSaveBtn.addEventListener('click', async () => {
             if (state.pendingCloseData) {
                 await saveFile(state.pendingCloseData.instanceId, state.pendingCloseData.filePath);
                 performCloseTab(state.pendingCloseData.instanceId, state.pendingCloseData.filePath);
                 closeUnsavedModal();
             }
-        };
+        });
     }
 
     if (dontSaveBtn) {
-        dontSaveBtn.onclick = () => {
+        const newDontSaveBtn = dontSaveBtn.cloneNode(true);
+        dontSaveBtn.parentNode.replaceChild(newDontSaveBtn, dontSaveBtn);
+        
+        newDontSaveBtn.addEventListener('click', () => {
             if (state.pendingCloseData) {
                 performCloseTab(state.pendingCloseData.instanceId, state.pendingCloseData.filePath);
                 closeUnsavedModal();
             }
-        };
+        });
     }
 
     if (cancelBtn) {
-        cancelBtn.onclick = () => {
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        
+        newCancelBtn.addEventListener('click', () => {
             closeUnsavedModal();
-        };
+        });
     }
 }
 
@@ -150,6 +235,8 @@ function closeUnsavedModal() {
     if (modal) modal.classList.remove('active');
     state.pendingCloseData = null;
 }
+
+// ===== FILE SAVING =====
 
 export async function saveFile(instanceId, filePath) {
     const instance = getEditorInstance(instanceId);
@@ -164,8 +251,17 @@ export async function saveFile(instanceId, filePath) {
             content: tab.content
         });
 
-        resetTabModified(instanceId, filePath);
-        renderInstanceTabs(instanceId);
+        // Reset modified state for all instances with this file
+        state.editorInstances.forEach(inst => {
+            const instTab = inst.tabs.get(filePath);
+            if (instTab) {
+                instTab.originalContent = tab.content;
+                instTab.modified = false;
+            }
+        });
+        
+        // Re-render all affected tabs
+        renderAllInstanceTabs();
         
         const statusMessage = document.getElementById('statusMessage');
         if (statusMessage) {
@@ -176,8 +272,16 @@ export async function saveFile(instanceId, filePath) {
                 statusMessage.style.color = '';
             }, 2000);
         }
+        
+        console.log(`File saved: ${filePath}`);
     } catch (error) {
         console.error('Error saving file:', error);
+        
+        const statusMessage = document.getElementById('statusMessage');
+        if (statusMessage) {
+            statusMessage.textContent = `Error saving: ${tab.name}`;
+            statusMessage.style.color = 'var(--error)';
+        }
     }
 }
 
@@ -193,4 +297,21 @@ export function closeActiveTab() {
     if (focusedInstance && focusedInstance.activeTab) {
         closeTab(focusedInstance.id, focusedInstance.activeTab);
     }
+}
+
+// ===== UTILITY FUNCTIONS =====
+
+export function getActiveTabInInstance(instanceId) {
+    const instance = getEditorInstance(instanceId);
+    if (!instance || !instance.activeTab) return null;
+    return instance.tabs.get(instance.activeTab);
+}
+
+export function hasUnsavedChanges() {
+    for (const instance of state.editorInstances) {
+        for (const [, tab] of instance.tabs) {
+            if (tab.modified) return true;
+        }
+    }
+    return false;
 }

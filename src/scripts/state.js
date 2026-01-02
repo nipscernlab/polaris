@@ -1,39 +1,70 @@
-// ===== CENTRALIZED STATE MANAGEMENT =====
+// ===== STATE MANAGEMENT =====
 
 export const state = {
-    // Workspace
-    workspacePath: null,
+    workspace: null,
     workspaceName: null,
-
-    // Editor Instances
-    editorInstances: [], // Array of { id, editor, tabs: Map, activeTab, focused }
-    nextEditorId: 1,
-    focusedInstanceId: null,
-
-    // File Tree
     fileTreeData: null,
-
-    // Settings
+    editorInstances: [],
+    nextEditorId: 1,
+    pendingCloseData: null,
     settings: {
         fontSize: 14,
+        fontFamily: "'JetBrains Mono', 'Consolas', monospace",
         tabSize: 4,
         lineNumbers: true,
-        wordWrap: false,
-        theme: 'polaris-dark',
-        fontFamily: 'JetBrains Mono',
         minimap: true,
-        padding: 16
-    },
-
-    // UI State
-    unsavedModalOpen: false,
-    pendingCloseData: null
+        wordWrap: false,
+        interfaceZoom: 1.0
+    }
 };
 
-// ===== WORKSPACE =====
+// ===== SETTINGS PERSISTENCE =====
+
+export function loadSettings() {
+    try {
+        const saved = localStorage.getItem('polaris_settings');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            state.settings = { ...state.settings, ...parsed };
+            
+            // Apply interface zoom immediately
+            applyInterfaceZoom(state.settings.interfaceZoom);
+            
+            console.log('Settings loaded:', state.settings);
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+}
+
+export function saveSettings() {
+    try {
+        localStorage.setItem('polaris_settings', JSON.stringify(state.settings));
+        console.log('Settings saved');
+    } catch (error) {
+        console.error('Error saving settings:', error);
+    }
+}
+
+export function updateSettings(updates) {
+    state.settings = { ...state.settings, ...updates };
+    saveSettings();
+}
+
+export function applyInterfaceZoom(zoomLevel) {
+    const app = document.getElementById('app');
+    if (app) {
+        app.style.transform = `scale(${zoomLevel})`;
+        app.style.transformOrigin = 'top left';
+        app.style.width = `${100 / zoomLevel}%`;
+        app.style.height = `${100 / zoomLevel}%`;
+    }
+}
+
+// ===== WORKSPACE MANAGEMENT =====
 
 export function setWorkspace(path, name) {
-    state.workspacePath = path;
+    state.workspace = path;
     state.workspaceName = name;
     
     const workspaceInfo = document.getElementById('workspaceInfo');
@@ -42,172 +73,177 @@ export function setWorkspace(path, name) {
     }
 }
 
-// ===== EDITOR INSTANCES =====
+// ===== EDITOR INSTANCE MANAGEMENT =====
 
-export function createEditorInstance(editorElement) {
+export function createEditorInstance(editor) {
     const instance = {
         id: state.nextEditorId++,
-        editor: editorElement,
+        editor: editor,
         tabs: new Map(),
         activeTab: null,
-        focused: false
+        focused: true
     };
     
+    // Unfocus all other instances
+    state.editorInstances.forEach(inst => inst.focused = false);
+    
     state.editorInstances.push(instance);
-    
-    if (state.editorInstances.length === 1) {
-        setFocusedInstance(instance.id);
-    }
-    
     return instance;
 }
 
-export function removeEditorInstance(instanceId) {
-    const index = state.editorInstances.findIndex(i => i.id === instanceId);
+export function getEditorInstance(id) {
+    return state.editorInstances.find(inst => inst.id === id);
+}
+
+export function removeEditorInstance(id) {
+    const index = state.editorInstances.findIndex(inst => inst.id === id);
     if (index !== -1) {
-        const instance = state.editorInstances[index];
-        
-        // Dispose all models
-        instance.tabs.forEach(tab => {
-            if (tab.model) {
-                tab.model.dispose();
-            }
-        });
-        
-        // Dispose editor
-        if (instance.editor) {
-            instance.editor.dispose();
-        }
-        
         state.editorInstances.splice(index, 1);
-        
-        // Update focus
-        if (state.focusedInstanceId === instanceId) {
-            if (state.editorInstances.length > 0) {
-                setFocusedInstance(state.editorInstances[0].id);
-            } else {
-                state.focusedInstanceId = null;
-            }
+    }
+    
+    // If removed instance was focused, focus first remaining instance
+    if (state.editorInstances.length > 0) {
+        const hasFocused = state.editorInstances.some(inst => inst.focused);
+        if (!hasFocused) {
+            state.editorInstances[0].focused = true;
         }
     }
 }
 
-export function getEditorInstance(instanceId) {
-    return state.editorInstances.find(i => i.id === instanceId);
+export function setFocusedInstance(id) {
+    state.editorInstances.forEach(inst => {
+        inst.focused = inst.id === id;
+    });
 }
 
 export function getFocusedInstance() {
-    if (!state.focusedInstanceId) return null;
-    return getEditorInstance(state.focusedInstanceId);
+    return state.editorInstances.find(inst => inst.focused) || state.editorInstances[0];
 }
 
-export function setFocusedInstance(instanceId) {
-    state.editorInstances.forEach(instance => {
-        instance.focused = instance.id === instanceId;
-    });
-    state.focusedInstanceId = instanceId;
-}
-
-// ===== TABS =====
+// ===== TAB MANAGEMENT =====
 
 export function addTab(instanceId, filePath, fileName, content) {
     const instance = getEditorInstance(instanceId);
     if (!instance) return;
 
-    if (!instance.tabs.has(filePath)) {
-        instance.tabs.set(filePath, {
-            name: fileName,
-            path: filePath,
-            content: content,
-            originalContent: content,
-            modified: false,
-            model: null
-        });
+    // Check if tab already exists in this instance
+    if (instance.tabs.has(filePath)) {
+        instance.activeTab = filePath;
+        return;
     }
-    
+
+    const tab = {
+        name: fileName,
+        path: filePath,
+        content: content,
+        originalContent: content,
+        modified: false,
+        model: null
+    };
+
+    instance.tabs.set(filePath, tab);
     instance.activeTab = filePath;
+    
+    console.log(`Tab added to instance ${instanceId}:`, fileName);
 }
 
 export function removeTab(instanceId, filePath) {
     const instance = getEditorInstance(instanceId);
     if (!instance) return;
 
-    const tab = instance.tabs.get(filePath);
-    if (tab && tab.model) {
-        tab.model.dispose();
-    }
-    
     instance.tabs.delete(filePath);
     
     // Update active tab
     if (instance.activeTab === filePath) {
-        const tabs = Array.from(instance.tabs.keys());
-        instance.activeTab = tabs.length > 0 ? tabs[tabs.length - 1] : null;
+        const remainingTabs = Array.from(instance.tabs.keys());
+        instance.activeTab = remainingTabs.length > 0 ? remainingTabs[remainingTabs.length - 1] : null;
     }
+    
+    console.log(`Tab removed from instance ${instanceId}:`, filePath);
 }
 
-export function getTab(instanceId, filePath) {
+export function updateTabContent(instanceId, filePath, newContent) {
     const instance = getEditorInstance(instanceId);
-    if (!instance) return null;
-    return instance.tabs.get(filePath);
+    if (!instance) return;
+
+    const tab = instance.tabs.get(filePath);
+    if (!tab) return;
+
+    tab.content = newContent;
+    tab.modified = newContent !== tab.originalContent;
+    
+    // Sync content to other instances with the same file
+    syncContentToOtherInstances(instanceId, filePath, newContent);
 }
 
-export function updateTabContent(instanceId, filePath, content) {
-    const tab = getTab(instanceId, filePath);
-    if (tab) {
-        tab.content = content;
-        tab.modified = content !== tab.originalContent;
-    }
+export function syncContentToOtherInstances(sourceInstanceId, filePath, newContent) {
+    state.editorInstances.forEach(instance => {
+        if (instance.id === sourceInstanceId) return;
+        
+        const tab = instance.tabs.get(filePath);
+        if (tab) {
+            tab.content = newContent;
+            tab.modified = newContent !== tab.originalContent;
+            
+            // Update Monaco model if this is the active tab
+            if (instance.activeTab === filePath && tab.model) {
+                const currentModelValue = tab.model.getValue();
+                if (currentModelValue !== newContent) {
+                    const position = instance.editor.getPosition();
+                    tab.model.setValue(newContent);
+                    if (position) {
+                        instance.editor.setPosition(position);
+                    }
+                }
+            }
+        }
+    });
 }
 
 export function resetTabModified(instanceId, filePath) {
-    const tab = getTab(instanceId, filePath);
+    const instance = getEditorInstance(instanceId);
+    if (!instance) return;
+
+    const tab = instance.tabs.get(filePath);
     if (tab) {
         tab.originalContent = tab.content;
         tab.modified = false;
+        
+        // Sync to other instances
+        state.editorInstances.forEach(inst => {
+            if (inst.id === instanceId) return;
+            const otherTab = inst.tabs.get(filePath);
+            if (otherTab) {
+                otherTab.originalContent = tab.content;
+                otherTab.modified = false;
+            }
+        });
     }
 }
 
-export function hasUnsavedChanges() {
+export function getTabFromAnyInstance(filePath) {
     for (const instance of state.editorInstances) {
-        for (const [path, tab] of instance.tabs) {
-            if (tab.modified) {
-                return true;
-            }
-        }
+        const tab = instance.tabs.get(filePath);
+        if (tab) return tab;
     }
-    return false;
+    return null;
 }
+
+// ===== UTILITY FUNCTIONS =====
 
 export function closeAllTabs() {
     state.editorInstances.forEach(instance => {
-        instance.tabs.forEach(tab => {
-            if (tab.model) {
-                tab.model.dispose();
-            }
-        });
         instance.tabs.clear();
         instance.activeTab = null;
     });
 }
 
-// ===== SETTINGS =====
-
-export function saveSettings() {
-    try {
-        localStorage.setItem('polaris_settings', JSON.stringify(state.settings));
-    } catch (error) {
-        console.error('Error saving settings:', error);
-    }
-}
-
-export function loadSettings() {
-    try {
-        const saved = localStorage.getItem('polaris_settings');
-        if (saved) {
-            Object.assign(state.settings, JSON.parse(saved));
-        }
-    } catch (error) {
-        console.error('Error loading settings:', error);
-    }
+export function getAllOpenFilePaths() {
+    const paths = new Set();
+    state.editorInstances.forEach(instance => {
+        instance.tabs.forEach((tab, path) => {
+            paths.add(path);
+        });
+    });
+    return Array.from(paths);
 }

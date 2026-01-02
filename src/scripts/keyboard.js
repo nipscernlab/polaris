@@ -1,61 +1,150 @@
-import { state } from './state.js';
-import { saveActiveFile, closeActiveTab } from './tabs.js';
+import { state, updateSettings, saveSettings } from './state.js';
 import { splitEditor } from './splitEditor.js';
+import { saveActiveFile, closeActiveTab } from './tabs.js';
+
+// ===== KEYBOARD SHORTCUTS =====
 
 export function initKeyboardShortcuts() {
     console.log('⌨️ Initializing keyboard shortcuts...');
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyboardShortcut);
+
+    console.log('✅ Keyboard shortcuts initialized');
 }
 
-function handleKeyDown(e) {
-    // Command Palette: Ctrl+Shift+P
-    if (e.ctrlKey && e.shiftKey && e.key === 'P') {
-        e.preventDefault();
-        openCommandPalette();
-        return;
-    }
+function handleKeyboardShortcut(e) {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
 
-    // Save: Ctrl+S (only if there's an editor)
-    if (e.ctrlKey && e.key === 's' && state.editorInstances.length > 0) {
+    // Ctrl+S - Save file
+    if (ctrlKey && e.key === 's') {
         e.preventDefault();
         saveActiveFile();
         return;
     }
 
-    // Close Tab: Ctrl+W (only if there's an editor)
-    if (e.ctrlKey && e.key === 'w' && state.editorInstances.length > 0) {
+    // Ctrl+W - Close tab
+    if (ctrlKey && e.key === 'w') {
         e.preventDefault();
         closeActiveTab();
         return;
     }
 
-    // Split Editor: Ctrl+\ (only if there's an editor and can split)
-    if (e.ctrlKey && e.key === '\\' && state.editorInstances.length > 0 && state.editorInstances.length < 3) {
+    // Ctrl+\ - Split editor
+    if (ctrlKey && e.key === '\\') {
         e.preventDefault();
         splitEditor();
         return;
     }
 
-    // Close Modal: Escape
-    if (e.key === 'Escape') {
-        closeModals();
+    // Ctrl+Shift+P - Command palette
+    if (ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        openCommandPalette();
+        return;
+    }
+
+    // Ctrl+B - Toggle sidebar
+    if (ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+    }
+
+    // Ctrl+Plus - Zoom in interface
+    if (ctrlKey && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        zoomInterface(0.1);
+        return;
+    }
+
+    // Ctrl+Minus - Zoom out interface
+    if (ctrlKey && (e.key === '-' || e.key === '_')) {
+        e.preventDefault();
+        zoomInterface(-0.1);
+        return;
+    }
+
+    // Ctrl+0 - Reset interface zoom
+    if (ctrlKey && e.key === '0') {
+        e.preventDefault();
+        resetInterfaceZoom();
         return;
     }
 }
 
 function openCommandPalette() {
-    const overlay = document.getElementById('commandPaletteOverlay');
-    const searchInput = document.getElementById('commandSearch');
-    
-    if (overlay && searchInput) {
-        overlay.classList.add('active');
-        setTimeout(() => searchInput.focus(), 100);
+    const commandPalette = document.getElementById('commandPaletteOverlay');
+    if (commandPalette) {
+        commandPalette.classList.add('active');
+    }
+    const commandSearch = document.getElementById('commandSearch');
+    if (commandSearch) {
+        commandSearch.focus();
     }
 }
 
-function closeModals() {
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.classList.remove('active');
-    });
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('toggleSidebarBtn');
+    
+    if (sidebar && toggleBtn) {
+        // Use the resizer's toggle function if available
+        const event = new CustomEvent('polaris-toggle-sidebar');
+        document.dispatchEvent(event);
+    }
 }
+
+function zoomInterface(delta) {
+    const currentZoom = state.settings.interfaceZoom || 1.0;
+    let newZoom = currentZoom + delta;
+    
+    // Clamp between 0.5 and 2.0
+    newZoom = Math.max(0.5, Math.min(2.0, newZoom));
+    newZoom = Math.round(newZoom * 10) / 10; // Round to 1 decimal
+    
+    if (newZoom !== currentZoom) {
+        updateSettings({ interfaceZoom: newZoom });
+        applyInterfaceZoom(newZoom);
+        
+        // Show zoom level notification
+        showZoomNotification(newZoom);
+    }
+}
+
+function resetInterfaceZoom() {
+    updateSettings({ interfaceZoom: 1.0 });
+    applyInterfaceZoom(1.0);
+    showZoomNotification(1.0);
+}
+
+function applyInterfaceZoom(zoomLevel) {
+    const app = document.getElementById('app');
+    if (app) {
+        // Use CSS zoom property instead of transform
+        // This scales everything including interactions properly
+        app.style.zoom = zoomLevel;
+    }
+}
+
+function showZoomNotification(zoomLevel) {
+    const percentage = Math.round(zoomLevel * 100);
+    const statusMessage = document.getElementById('statusMessage');
+    
+    if (statusMessage) {
+        const originalText = statusMessage.textContent;
+        const originalColor = statusMessage.style.color;
+        
+        statusMessage.textContent = `Interface Zoom: ${percentage}%`;
+        statusMessage.style.color = 'var(--accent)';
+        
+        setTimeout(() => {
+            statusMessage.textContent = originalText || 'Ready';
+            statusMessage.style.color = originalColor;
+        }, 1500);
+    }
+}
+
+// ===== EXPORT FUNCTIONS =====
+
+export { handleKeyboardShortcut, applyInterfaceZoom };

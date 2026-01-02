@@ -1,5 +1,5 @@
 import * as monaco from 'monaco-editor';
-import { state, createEditorInstance, removeEditorInstance, setFocusedInstance, getEditorInstance, addTab } from './state.js';
+import { state, createEditorInstance, removeEditorInstance, setFocusedInstance, getEditorInstance, addTab, getFocusedInstance } from './state.js';
 import { initMonacoEditor, setEditorModel } from './monaco.js';
 import { renderInstanceTabs } from './tabs.js';
 
@@ -9,19 +9,15 @@ let splitInstance = null;
 
 export function initSplitEditor() {
     console.log('🔀 Split editor system ready (no editors created yet)');
-    // Don't create any editors on init - wait for first file to be opened
 }
 
 export async function ensureEditorExists() {
-    // If no editors exist, create the first one
     if (state.editorInstances.length === 0) {
         const instance = await createFirstEditor();
         return instance;
     }
     
-    // Return focused instance or first instance
-    const focused = state.editorInstances.find(i => i.focused);
-    return focused || state.editorInstances[0];
+    return getFocusedInstance() || state.editorInstances[0];
 }
 
 async function createFirstEditor() {
@@ -52,7 +48,6 @@ async function createFirstEditor() {
     
     container.appendChild(editorDiv);
 
-    // Initialize Monaco editor
     const monacoContainer = document.getElementById('monaco-1');
     const editor = await initMonacoEditor(monacoContainer, 1);
     
@@ -62,13 +57,9 @@ async function createFirstEditor() {
         return null;
     }
     
-    // Create instance
     const instance = createEditorInstance(editor);
-    
-    // Setup event listeners
     setupEditorListeners(instance.id);
     
-    // Hide welcome screen
     const welcomeScreen = document.getElementById('welcomeScreen');
     if (welcomeScreen) {
         welcomeScreen.classList.add('hidden');
@@ -91,12 +82,12 @@ export async function splitEditor(sourceInstanceId = null) {
         return;
     }
 
-    // Get source instance - prioritize the focused one or use specified
+    // Get source instance - use specified ID or focused instance
     let sourceInstance;
     if (sourceInstanceId) {
         sourceInstance = getEditorInstance(sourceInstanceId);
     } else {
-        sourceInstance = state.editorInstances.find(i => i.focused) || state.editorInstances[0];
+        sourceInstance = getFocusedInstance();
     }
 
     if (!sourceInstance) {
@@ -153,9 +144,10 @@ export async function splitEditor(sourceInstanceId = null) {
     // Create instance
     const newInstance = createEditorInstance(editor);
     
-    // CRITICAL: Copy the ACTIVE tab from source instance (the one that was focused)
+    // Copy the ACTIVE tab from source instance
     const sourceTab = sourceInstance.tabs.get(sourceInstance.activeTab);
     if (sourceTab) {
+        // Add tab to new instance (this creates an independent tab)
         addTab(newInstance.id, sourceTab.path, sourceTab.name, sourceTab.content);
         renderInstanceTabs(newInstance.id);
         setEditorModel(newInstance.id, sourceTab.path);
@@ -164,7 +156,7 @@ export async function splitEditor(sourceInstanceId = null) {
     // Setup event listeners
     setupEditorListeners(newInstance.id);
     
-    // Setup Split.js with improved gutter
+    // Setup Split.js
     updateSplit();
     
     // Update split button states
@@ -210,10 +202,21 @@ function updateSplit() {
                         'width': `${gutterSize}px`,
                         'background-color': 'var(--border)',
                         'cursor': 'col-resize',
-                        'transition': 'background-color 0.2s ease'
+                        'transition': 'background-color 0.2s ease',
+                        'display': 'flex',
+                        'align-items': 'center',
+                        'justify-content': 'center'
                     }),
                     onDrag: () => {
                         // Trigger Monaco layout update during drag
+                        instances.forEach(inst => {
+                            if (inst.editor) {
+                                inst.editor.layout();
+                            }
+                        });
+                    },
+                    onDragEnd: () => {
+                        // Final layout update after drag completes
                         instances.forEach(inst => {
                             if (inst.editor) {
                                 inst.editor.layout();
@@ -232,6 +235,8 @@ function updateSplit() {
                         gutter.style.backgroundColor = 'var(--border)';
                     });
                 });
+                
+                console.log('Split.js initialized with', elements.length, 'panels');
             } catch (error) {
                 console.error('Error creating split:', error);
             }
@@ -247,6 +252,13 @@ function setupEditorListeners(instanceId) {
     editorDiv.addEventListener('mousedown', () => {
         setFocusedInstance(instanceId);
         updateFocusVisuals();
+        
+        // Update file tree highlight for active tab
+        const instance = getEditorInstance(instanceId);
+        if (instance && instance.activeTab) {
+            const { updateFileTreeHighlight } = require('./fileTree.js');
+            updateFileTreeHighlight(instance.activeTab);
+        }
     });
 
     // Split button
@@ -308,7 +320,6 @@ export function updateSplitButtons() {
         
         const splitBtn = editorDiv.querySelector('.split-btn');
         if (splitBtn) {
-            // Only disable if no active tab or max instances reached
             const hasActiveTab = instance.activeTab !== null;
             splitBtn.disabled = !canSplit || !hasActiveTab;
             splitBtn.style.display = hasEditors ? 'flex' : 'none';
@@ -375,6 +386,15 @@ export async function closeEditorInstance(instanceId) {
         const welcomeScreen = document.getElementById('welcomeScreen');
         if (welcomeScreen) {
             welcomeScreen.classList.remove('hidden');
+        }
+    } else {
+        // Focus remaining instance
+        if (state.editorInstances.length > 0) {
+            const remainingInstance = state.editorInstances[0];
+            setFocusedInstance(remainingInstance.id);
+            if (remainingInstance.editor) {
+                remainingInstance.editor.focus();
+            }
         }
     }
 }

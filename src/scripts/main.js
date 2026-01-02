@@ -13,14 +13,18 @@ async function initApp() {
     console.log('🚀 Initializing POLARIS Editor...');
 
     try {
+        // Load settings first
         loadSettings();
+        
+        // Initialize all components
         initWindowControls();
-        initSplitEditor(); // Just initialize system, don't create editors
+        initSplitEditor();
         initFileTree();
         initCommandPalette();
         initKeyboardShortcuts();
-        initSidebarResizer(); // Add sidebar resizer
+        initSidebarResizer();
         setupFolderOpening();
+        setupActivityBar();
 
         console.log('✅ POLARIS Editor initialized');
     } catch (error) {
@@ -55,11 +59,31 @@ function initWindowControls() {
 
     document.getElementById('closeBtn')?.addEventListener('click', async () => {
         try {
+            // Check for unsaved changes
+            const { hasUnsavedChanges } = await import('./tabs.js');
+            if (hasUnsavedChanges()) {
+                const confirmed = window.confirm('You have unsaved changes. Close anyway?');
+                if (!confirmed) return;
+            }
+            
             await appWindow.close();
         } catch (error) {
             console.error('Error closing:', error);
         }
     });
+}
+
+// ===== ACTIVITY BAR =====
+function setupActivityBar() {
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const sidebar = document.getElementById('sidebar');
+    
+    if (toggleSidebarBtn && sidebar) {
+        toggleSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            toggleSidebarBtn.classList.toggle('active');
+        });
+    }
 }
 
 // ===== FOLDER OPENING =====
