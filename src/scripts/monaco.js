@@ -146,7 +146,7 @@ function setupEditorListeners(editor, instanceId) {
         }
     });
 
-    // Focus handling
+    // Focus handling - UPDATE FILE TREE HIGHLIGHT
     editor.onDidFocusEditorText(() => {
         const { setFocusedInstance } = require('./state.js');
         setFocusedInstance(instanceId);
@@ -155,6 +155,14 @@ function setupEditorListeners(editor, instanceId) {
         // Update file tree highlight when editor gains focus
         const instance = getEditorInstance(instanceId);
         if (instance && instance.activeTab) {
+            updateFileTreeHighlight(instance.activeTab);
+        }
+    });
+    
+    // Also update on model change
+    editor.onDidChangeModel(() => {
+        const instance = getEditorInstance(instanceId);
+        if (instance && instance.activeTab && instance.focused) {
             updateFileTreeHighlight(instance.activeTab);
         }
     });

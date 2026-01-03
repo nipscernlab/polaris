@@ -106,6 +106,7 @@ function zoomInterface(delta) {
     if (newZoom !== currentZoom) {
         updateSettings({ interfaceZoom: newZoom });
         applyInterfaceZoom(newZoom);
+        saveSettings();
         
         // Show zoom level notification
         showZoomNotification(newZoom);
@@ -115,15 +116,20 @@ function zoomInterface(delta) {
 function resetInterfaceZoom() {
     updateSettings({ interfaceZoom: 1.0 });
     applyInterfaceZoom(1.0);
+    saveSettings();
     showZoomNotification(1.0);
 }
 
 function applyInterfaceZoom(zoomLevel) {
     const app = document.getElementById('app');
     if (app) {
-        // Use CSS zoom property instead of transform
-        // This scales everything including interactions properly
-        app.style.zoom = zoomLevel;
+        // Use transform scale with proper origin
+        app.style.transform = `scale(${zoomLevel})`;
+        app.style.transformOrigin = 'top left';
+        
+        // Adjust container size to compensate for scale
+        app.style.width = `${100 / zoomLevel}%`;
+        app.style.height = `${100 / zoomLevel}%`;
     }
 }
 

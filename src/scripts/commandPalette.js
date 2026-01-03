@@ -24,6 +24,7 @@ function setupCommands() {
             id: 'file.save',
             label: 'Save File',
             description: 'Save the current file',
+            icon: 'save',
             shortcut: 'Ctrl+S',
             action: () => saveActiveFile()
         },
@@ -31,6 +32,7 @@ function setupCommands() {
             id: 'file.close',
             label: 'Close Tab',
             description: 'Close the current tab',
+            icon: 'close',
             shortcut: 'Ctrl+W',
             action: () => closeActiveTab()
         },
@@ -38,6 +40,7 @@ function setupCommands() {
             id: 'editor.split',
             label: 'Split Editor',
             description: 'Split the editor horizontally',
+            icon: 'vertical_split',
             shortcut: 'Ctrl+\\',
             action: () => splitEditor()
         },
@@ -45,6 +48,7 @@ function setupCommands() {
             id: 'view.toggleSidebar',
             label: 'Toggle Sidebar',
             description: 'Show or hide the sidebar',
+            icon: 'side_navigation',
             shortcut: 'Ctrl+B',
             action: () => toggleSidebar()
         },
@@ -52,6 +56,7 @@ function setupCommands() {
             id: 'view.zoomIn',
             label: 'Zoom In',
             description: 'Increase interface zoom',
+            icon: 'zoom_in',
             shortcut: 'Ctrl++',
             action: () => zoomInterface(0.1)
         },
@@ -59,6 +64,7 @@ function setupCommands() {
             id: 'view.zoomOut',
             label: 'Zoom Out',
             description: 'Decrease interface zoom',
+            icon: 'zoom_out',
             shortcut: 'Ctrl+-',
             action: () => zoomInterface(-0.1)
         },
@@ -66,6 +72,7 @@ function setupCommands() {
             id: 'view.zoomReset',
             label: 'Reset Zoom',
             description: 'Reset interface zoom to 100%',
+            icon: 'fit_screen',
             shortcut: 'Ctrl+0',
             action: () => resetInterfaceZoom()
         },
@@ -73,30 +80,35 @@ function setupCommands() {
             id: 'editor.increaseFontSize',
             label: 'Increase Font Size',
             description: 'Make editor text larger',
+            icon: 'text_increase',
             action: () => changeFontSize(1)
         },
         {
             id: 'editor.decreaseFontSize',
             label: 'Decrease Font Size',
             description: 'Make editor text smaller',
+            icon: 'text_decrease',
             action: () => changeFontSize(-1)
         },
         {
             id: 'editor.toggleMinimap',
             label: 'Toggle Minimap',
             description: 'Show or hide the minimap',
+            icon: 'map',
             action: () => toggleMinimap()
         },
         {
             id: 'editor.toggleLineNumbers',
             label: 'Toggle Line Numbers',
             description: 'Show or hide line numbers',
+            icon: 'format_list_numbered',
             action: () => toggleLineNumbers()
         },
         {
             id: 'editor.toggleWordWrap',
             label: 'Toggle Word Wrap',
             description: 'Enable or disable word wrapping',
+            icon: 'wrap_text',
             action: () => toggleWordWrap()
         }
     ];
@@ -179,23 +191,37 @@ function renderCommands() {
     commandList.innerHTML = '';
 
     if (filteredCommands.length === 0) {
-        commandList.innerHTML = '<div class="palette-empty">No commands found</div>';
+        commandList.innerHTML = `
+            <div class="command-empty">
+                <span class="material-symbols-outlined">search_off</span>
+                <p>No commands found</p>
+            </div>
+        `;
         return;
     }
 
     filteredCommands.forEach((cmd, index) => {
         const item = document.createElement('div');
-        item.className = 'palette-item';
+        item.className = 'command-item';
         if (index === selectedIndex) {
             item.classList.add('selected');
         }
 
         item.innerHTML = `
-            <div class="palette-item-content">
-                <div class="palette-item-label">${cmd.label}</div>
-                ${cmd.description ? `<div class="palette-item-desc">${cmd.description}</div>` : ''}
+            <div class="command-item-left">
+                <div class="command-icon">
+                    <span class="material-symbols-outlined">${cmd.icon || 'terminal'}</span>
+                </div>
+                <div class="command-info">
+                    <div class="command-title">${cmd.label}</div>
+                    ${cmd.description ? `<div class="command-description">${cmd.description}</div>` : ''}
+                </div>
             </div>
-            ${cmd.shortcut ? `<kbd class="palette-shortcut">${cmd.shortcut}</kbd>` : ''}
+            ${cmd.shortcut ? `
+                <div class="command-shortcut">
+                    ${cmd.shortcut.split('+').map(key => `<kbd>${key}</kbd>`).join('')}
+                </div>
+            ` : ''}
         `;
 
         item.addEventListener('click', () => {
@@ -211,7 +237,7 @@ function renderCommands() {
     });
 
     // Scroll selected item into view
-    const selectedItem = commandList.querySelector('.palette-item.selected');
+    const selectedItem = commandList.querySelector('.command-item.selected');
     if (selectedItem) {
         selectedItem.scrollIntoView({ block: 'nearest' });
     }

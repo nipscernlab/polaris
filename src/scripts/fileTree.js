@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { state, addTab, getFocusedInstance } from './state.js';
 import { setEditorModel } from './monaco.js';
-import { renderInstanceTabs, switchTab } from './tabs.js';
+import { renderInstanceTabs, switchTab, closeFileFromAllInstances } from './tabs.js';
 import { ensureEditorExists, updateSplitButtons } from './splitEditor.js';
 
 // File tree state
@@ -64,6 +64,7 @@ export async function refreshFileTree(folderPath) {
         // Restore highlight for active tab
         const focusedInstance = getFocusedInstance();
         if (focusedInstance && focusedInstance.activeTab) {
+            console.log('Restoring highlight after refresh for:', focusedInstance.activeTab);
             updateFileTreeHighlight(focusedInstance.activeTab);
         }
     } catch (error) {
@@ -230,16 +231,22 @@ function toggleFolder(element) {
 // ===== FILE TREE HIGHLIGHT SYNC =====
 
 export function updateFileTreeHighlight(filePath) {
+    console.log('Updating file tree highlight for:', filePath);
+    
     // Remove all previous highlights
     document.querySelectorAll('.file-tree-item.active').forEach(el => {
         el.classList.remove('active');
     });
 
-    if (!filePath) return;
+    if (!filePath) {
+        console.log('No file path provided, clearing highlights');
+        return;
+    }
 
     // Add highlight to the active file
     const fileElement = document.querySelector(`.file-tree-item[data-path="${filePath}"]`);
     if (fileElement) {
+        console.log('Found file element, adding highlight');
         fileElement.classList.add('active');
         
         // Ensure parent folders are expanded
@@ -248,6 +255,7 @@ export function updateFileTreeHighlight(filePath) {
             if (parent.hasAttribute('data-item-wrapper')) {
                 const folderElement = parent.querySelector('.file-tree-item.folder');
                 if (folderElement && !folderElement.classList.contains('expanded')) {
+                    console.log('Expanding parent folder');
                     toggleFolder(folderElement);
                 }
             }
@@ -256,6 +264,8 @@ export function updateFileTreeHighlight(filePath) {
         
         // Scroll into view if needed
         fileElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else {
+        console.log('File element not found in tree for path:', filePath);
     }
 }
 
@@ -278,7 +288,7 @@ async function openFile(item) {
         // If tab already exists in THIS instance, just switch to it
         if (instance.tabs.has(filePath)) {
             switchTab(instanceId, filePath);
-            updateFileTreeHighlight(filePath);
+            // Highlight will be updated inside switchTab
             return;
         }
 
@@ -290,7 +300,10 @@ async function openFile(item) {
         renderInstanceTabs(instanceId);
         setEditorModel(instanceId, filePath);
         
+        // CRITICAL: Update highlight after opening file
+        console.log('File opened, updating highlight for:', filePath);
         updateFileTreeHighlight(filePath);
+        
         updateSplitButtons();
         
         console.log('✅ File opened:', fileName);
@@ -501,7 +514,15 @@ async function deleteItem(item) {
     if (!confirmed) return;
 
     try {
+        // If it's a file, close it from all Monaco instances first
+        if (!isDirectoryItem(item)) {
+            closeFileFromAllInstances(item.path);
+        }
+        
+        // Delete from filesystem
         await invoke('delete_item', { path: item.path });
+        
+        // Refresh file tree
         await refreshFileTreePreservingState();
         
         console.log('✅ Deleted:', item.name);

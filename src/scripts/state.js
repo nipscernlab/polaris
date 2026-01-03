@@ -54,8 +54,11 @@ export function updateSettings(updates) {
 export function applyInterfaceZoom(zoomLevel) {
     const app = document.getElementById('app');
     if (app) {
+        // Use transform scale with proper origin
         app.style.transform = `scale(${zoomLevel})`;
         app.style.transformOrigin = 'top left';
+        
+        // Adjust container size to compensate for scale
         app.style.width = `${100 / zoomLevel}%`;
         app.style.height = `${100 / zoomLevel}%`;
     }

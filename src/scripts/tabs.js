@@ -80,14 +80,6 @@ export function switchTab(instanceId, filePath) {
         return;
     }
 
-    if (instance.activeTab === filePath) {
-        // Already active, just focus
-        if (instance.editor) {
-            instance.editor.focus();
-        }
-        return;
-    }
-
     const tab = instance.tabs.get(filePath);
     if (!tab) {
         console.error(`Tab ${filePath} not found in instance ${instanceId}`);
@@ -97,13 +89,14 @@ export function switchTab(instanceId, filePath) {
     // Set focus to this instance
     setFocusedInstance(instanceId);
 
-    // Set the model for this tab
+    // Set the model for this tab (this will update highlight inside setEditorModel)
     setEditorModel(instanceId, filePath);
     
     // Re-render tabs to update active state
     renderInstanceTabs(instanceId);
     
-    // Update file tree highlight
+    // CRITICAL: Ensure file tree highlight is updated
+    console.log('Switched to tab, updating highlight for:', filePath);
     updateFileTreeHighlight(filePath);
     
     console.log(`Switched to tab: ${tab.name} in instance ${instanceId}`);
@@ -160,7 +153,7 @@ function performCloseTab(instanceId, filePath) {
             updateFileTreeHighlight(null);
         }
     } else {
-        // Switch to another tab
+        // Switch to another tab in this instance
         if (instance.activeTab === filePath || !instance.activeTab) {
             // Need to switch to a different tab
             const remainingTabs = Array.from(instance.tabs.keys());
@@ -171,6 +164,71 @@ function performCloseTab(instanceId, filePath) {
         } else {
             // Active tab is still valid, just refresh the model
             setEditorModel(instanceId, instance.activeTab);
+            updateFileTreeHighlight(instance.activeTab);
+        }
+    }
+}
+
+// ===== CLOSE FILE FROM ALL INSTANCES =====
+
+export function closeFileFromAllInstances(filePath) {
+    console.log(`Closing file from all instances: ${filePath}`);
+    
+    // Collect all instances that have this file
+    const instancesToUpdate = [];
+    state.editorInstances.forEach(instance => {
+        if (instance.tabs.has(filePath)) {
+            instancesToUpdate.push(instance.id);
+        }
+    });
+    
+    // Close the file from each instance
+    instancesToUpdate.forEach(instanceId => {
+        const instance = getEditorInstance(instanceId);
+        if (!instance) return;
+        
+        // Remove the tab
+        removeTab(instanceId, filePath);
+        
+        // If this was the active tab, switch to another
+        if (instance.activeTab === filePath) {
+            const remainingTabs = Array.from(instance.tabs.keys());
+            if (remainingTabs.length > 0) {
+                // Switch to another tab in same instance
+                switchTab(instanceId, remainingTabs[0]);
+            } else {
+                // No more tabs in this instance
+                instance.activeTab = null;
+                if (instance.editor) {
+                    instance.editor.setModel(null);
+                }
+            }
+        }
+        
+        // Re-render tabs
+        renderInstanceTabs(instanceId);
+    });
+    
+    // Dispose the model
+    disposeModel(filePath);
+    
+    // Check if we need to close empty instances
+    checkAndCloseEmptyInstances();
+    
+    // If all instances are closed, show welcome screen
+    if (state.editorInstances.length === 0) {
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        if (welcomeScreen) {
+            welcomeScreen.classList.remove('hidden');
+        }
+        updateFileTreeHighlight(null);
+    } else {
+        // Update highlight to currently focused instance's active tab
+        const focusedInstance = state.editorInstances.find(i => i.focused);
+        if (focusedInstance && focusedInstance.activeTab) {
+            updateFileTreeHighlight(focusedInstance.activeTab);
+        } else {
+            updateFileTreeHighlight(null);
         }
     }
 }
