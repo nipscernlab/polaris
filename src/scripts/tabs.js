@@ -40,7 +40,7 @@ export function renderInstanceTabs(instanceId) {
 
         tabElement.innerHTML = `
             <span class="material-symbols-outlined">description</span>
-            <span class="tab-name">${tab.name}</span>
+            <span class="tab-name">${escapeHtml(tab.name)}</span>
             ${tab.modified ? '<span class="modified-indicator">●</span>' : ''}
             <button class="tab-close">
                 <span class="material-symbols-outlined">close</span>
@@ -63,6 +63,12 @@ export function renderInstanceTabs(instanceId) {
 
         tabsContainer.appendChild(tabElement);
     });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 export function renderAllInstanceTabs() {
@@ -89,13 +95,13 @@ export function switchTab(instanceId, filePath) {
     // Set focus to this instance
     setFocusedInstance(instanceId);
 
-    // Set the model for this tab (this will update highlight inside setEditorModel)
+    // Set the model for this tab
     setEditorModel(instanceId, filePath);
     
     // Re-render tabs to update active state
     renderInstanceTabs(instanceId);
     
-    // CRITICAL: Ensure file tree highlight is updated
+    // Update file tree highlight
     console.log('Switched to tab, updating highlight for:', filePath);
     updateFileTreeHighlight(filePath);
     

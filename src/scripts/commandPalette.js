@@ -10,12 +10,12 @@ let filteredCommands = [];
 let selectedIndex = 0;
 
 export function initCommandPalette() {
-    console.log('🔍 Initializing command palette...');
+    console.log('Initializing command palette...');
 
     setupCommands();
     setupEventListeners();
 
-    console.log('✅ Command palette initialized');
+    console.log('Command palette initialized');
 }
 
 function setupCommands() {

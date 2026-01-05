@@ -5,7 +5,7 @@ let tooltipTimeout = null;
 const TOOLTIP_DELAY = 500; // ms
 
 export function initTooltip() {
-    console.log('💬 Initializing tooltip system...');
+    console.log('Initializing tooltip system...');
 
     tooltipElement = document.getElementById('tooltip');
     
@@ -27,7 +27,7 @@ export function initTooltip() {
         subtree: true
     });
 
-    console.log('✅ Tooltip system initialized');
+    console.log('Tooltip system initialized');
 }
 
 function setupTooltips() {

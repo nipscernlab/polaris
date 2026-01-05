@@ -4,7 +4,7 @@ let horizontalSplit = null;
 let verticalSplit = null;
 
 export function initLayout() {
-    console.log('📐 Initializing layout system...');
+    console.log('Initializing layout system...');
 
     // Initialize horizontal split (sidebar | editor+terminal)
     const mainSplitElements = document.querySelectorAll('#mainSplit > *');
@@ -41,7 +41,7 @@ export function initLayout() {
     // Load saved layout state
     loadLayoutState();
 
-    console.log('✅ Layout system initialized');
+    console.log('Layout system initialized');
 }
 
 function saveLayoutState() {

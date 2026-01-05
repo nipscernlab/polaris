@@ -4,12 +4,12 @@ import { renderInstanceTabs } from './tabs.js';
 import { updateFileTreeHighlight } from './fileTree.js';
 
 let themesDefined = false;
-const globalModels = new Map(); // Global model cache - one model per file path
+const globalModels = new Map();
 
 // ===== MONACO EDITOR INITIALIZATION =====
 
 export async function initMonacoEditor(container, instanceId) {
-    console.log(`🔧 Initializing Monaco Editor instance ${instanceId}...`);
+    console.log(`Initializing Monaco Editor instance ${instanceId}...`);
 
     if (!container) {
         console.error('Monaco editor container not found');
@@ -116,7 +116,7 @@ export async function initMonacoEditor(container, instanceId) {
         // Setup font zoom with Ctrl + Mouse Wheel
         setupFontZoom(editor, container);
 
-        console.log(`✅ Monaco Editor instance ${instanceId} initialized`);
+        console.log(`Monaco Editor instance ${instanceId} initialized`);
         return editor;
     } catch (error) {
         console.error('Error creating Monaco editor:', error);
@@ -155,6 +155,7 @@ function setupEditorListeners(editor, instanceId) {
         // Update file tree highlight when editor gains focus
         const instance = getEditorInstance(instanceId);
         if (instance && instance.activeTab) {
+            console.log('Editor focused, updating highlight for:', instance.activeTab);
             updateFileTreeHighlight(instance.activeTab);
         }
     });
@@ -163,6 +164,7 @@ function setupEditorListeners(editor, instanceId) {
     editor.onDidChangeModel(() => {
         const instance = getEditorInstance(instanceId);
         if (instance && instance.activeTab && instance.focused) {
+            console.log('Model changed, updating highlight for:', instance.activeTab);
             updateFileTreeHighlight(instance.activeTab);
         }
     });
@@ -272,6 +274,7 @@ export function setEditorModel(instanceId, filePath) {
 
     // Update status bar and file tree
     updateStatusBar(tab.name, getLanguageFromPath(filePath));
+    console.log('Setting model, updating highlight for:', filePath);
     updateFileTreeHighlight(filePath);
     
     // Focus the editor

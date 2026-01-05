@@ -5,11 +5,11 @@ import { saveActiveFile, closeActiveTab } from './tabs.js';
 // ===== KEYBOARD SHORTCUTS =====
 
 export function initKeyboardShortcuts() {
-    console.log('⌨️ Initializing keyboard shortcuts...');
+    console.log('Initializing keyboard shortcuts...');
 
     document.addEventListener('keydown', handleKeyboardShortcut);
 
-    console.log('✅ Keyboard shortcuts initialized');
+    console.log('Keyboard shortcuts initialized');
 }
 
 function handleKeyboardShortcut(e) {

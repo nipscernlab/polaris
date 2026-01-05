@@ -4,7 +4,7 @@ let editorInstance = null;
 let currentContent = '';
 
 export function initEditor() {
-    console.log('✏️ Initializing code editor...');
+    console.log('Initializing code editor...');
 
     const editorElement = document.getElementById('editor');
     
@@ -16,7 +16,7 @@ export function initEditor() {
     // Add event listeners for editor
     setupEditorListeners();
 
-    console.log('✅ Code editor initialized');
+    console.log('Code editor initialized');
 }
 
 function setupEditorListeners() {

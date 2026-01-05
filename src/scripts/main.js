@@ -10,7 +10,7 @@ import { initSidebarResizer } from './sidebarResizer.js';
 
 // ===== INITIALIZATION =====
 async function initApp() {
-    console.log('🚀 Initializing POLARIS Editor...');
+    console.log('Initializing POLARIS Editor...');
 
     try {
         // Load settings first
@@ -26,7 +26,7 @@ async function initApp() {
         setupFolderOpening();
         setupActivityBar();
 
-        console.log('✅ POLARIS Editor initialized');
+        console.log('POLARIS Editor initialized');
     } catch (error) {
         console.error('❌ Error initializing POLARIS:', error);
     }
@@ -132,7 +132,7 @@ async function loadWorkspace(folderPath) {
             welcomeScreen.classList.add('hidden');
         }
 
-        console.log('✅ Workspace loaded:', folderName);
+        console.log('Workspace loaded:', folderName);
     } catch (error) {
         console.error('Error loading workspace:', error);
     }

@@ -4,7 +4,7 @@ import { setEditorTheme } from './monaco.js';
 // ===== SETTINGS MANAGEMENT =====
 
 export function initSettings() {
-    console.log('⚙️ Initializing settings...');
+    console.log('Initializing settings...');
 
     const overlay = document.getElementById('settingsOverlay');
     const closeBtn = document.getElementById('closeSettings');
@@ -40,7 +40,7 @@ export function initSettings() {
     // Add input change listeners for live preview
     addInputListeners();
 
-    console.log('✅ Settings initialized');
+    console.log('Settings initialized');
 }
 
 function loadSettingsToForm() {

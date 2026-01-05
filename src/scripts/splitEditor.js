@@ -7,12 +7,12 @@ let splitInstance = null;
 // ===== SPLIT EDITOR INITIALIZATION =====
 
 export function initSplitEditor() {
-    console.log('📐 Initializing split editor system...');
+    console.log('Initializing split editor system...');
     
     // DO NOT create initial editor instance
     // It will be created when user opens first file
     
-    console.log('✅ Split editor system initialized');
+    console.log('Split editor system initialized');
 }
 
 // ===== ENSURE EDITOR EXISTS =====
@@ -57,7 +57,7 @@ export async function ensureEditorExists() {
             
             updateSplitButtons();
             
-            console.log('✅ Initial editor instance created:', instance.id);
+            console.log('Initial editor instance created:', instance.id);
             return instance;
         }
         
@@ -157,7 +157,7 @@ export async function splitEditor() {
         
         updateSplitButtons();
         
-        console.log('✅ Editor split created:', newInstance.id);
+        console.log('Editor split created:', newInstance.id);
     }
 }
 
@@ -231,7 +231,7 @@ export function closeEditorInstance(instanceId) {
     updateFocusVisuals();
     updateSplitButtons();
     
-    console.log('✅ Editor instance closed:', instanceId);
+    console.log('Editor instance closed:', instanceId);
 }
 
 // ===== CHECK AND CLOSE EMPTY INSTANCES =====

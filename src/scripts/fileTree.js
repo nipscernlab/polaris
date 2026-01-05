@@ -9,11 +9,12 @@ import { ensureEditorExists, updateSplitButtons } from './splitEditor.js';
 let fileTreeItems = [];
 let draggedItem = null;
 let contextMenu = null;
+let expandedPaths = new Set();
 
 // ===== INITIALIZATION =====
 
 export function initFileTree() {
-    console.log('📂 Initializing file tree...');
+    console.log('Initializing file tree...');
     
     const fileTreeContainer = document.getElementById('fileTree');
     if (!fileTreeContainer) {
@@ -24,8 +25,9 @@ export function initFileTree() {
     renderEmptyTree();
     setupContextMenu();
     setupDragAndDrop();
+    setupFolderNameModal();
     
-    console.log('✅ File tree initialized');
+    console.log('File tree initialized');
 }
 
 // ===== TREE RENDERING =====
@@ -49,6 +51,9 @@ export async function refreshFileTree(folderPath) {
     const fileTreeContainer = document.getElementById('fileTree');
     
     try {
+        // Save expanded state before refresh
+        saveExpandedState();
+        
         const fileTree = await invoke('get_file_tree', { path: folderPath });
         state.fileTreeData = fileTree;
         
@@ -61,16 +66,40 @@ export async function refreshFileTree(folderPath) {
         
         renderFileTree();
         
-        // Restore highlight for active tab
-        const focusedInstance = getFocusedInstance();
-        if (focusedInstance && focusedInstance.activeTab) {
-            console.log('Restoring highlight after refresh for:', focusedInstance.activeTab);
-            updateFileTreeHighlight(focusedInstance.activeTab);
-        }
+        // Restore expanded state after render
+        setTimeout(() => {
+            restoreExpandedState();
+            
+            // Restore highlight for active tab
+            const focusedInstance = getFocusedInstance();
+            if (focusedInstance && focusedInstance.activeTab) {
+                console.log('Restoring highlight after refresh for:', focusedInstance.activeTab);
+                updateFileTreeHighlight(focusedInstance.activeTab);
+            }
+        }, 50);
     } catch (error) {
         console.error('Error loading file tree:', error);
         showError(fileTreeContainer);
     }
+}
+
+function saveExpandedState() {
+    expandedPaths.clear();
+    document.querySelectorAll('.file-tree-item.expanded').forEach(el => {
+        const path = el.getAttribute('data-path');
+        if (path) {
+            expandedPaths.add(path);
+        }
+    });
+}
+
+function restoreExpandedState() {
+    expandedPaths.forEach(path => {
+        const element = document.querySelector(`.file-tree-item[data-path="${CSS.escape(path)}"]`);
+        if (element && !element.classList.contains('expanded')) {
+            toggleFolder(element);
+        }
+    });
 }
 
 function renderFileTree() {
@@ -120,7 +149,7 @@ function createTreeElements(items, level) {
                     <span class="material-symbols-outlined">chevron_right</span>
                 </div>
                 <span class="material-symbols-outlined folder-icon">folder</span>
-                <span class="item-name">${item.name}</span>
+                <span class="item-name">${escapeHtml(item.name)}</span>
             `;
 
             element.addEventListener('click', (e) => {
@@ -139,7 +168,7 @@ function createTreeElements(items, level) {
             element.innerHTML = `
                 <div class="expand-icon" style="visibility: hidden;"></div>
                 <span class="material-symbols-outlined">${icon}</span>
-                <span class="item-name">${item.name}</span>
+                <span class="item-name">${escapeHtml(item.name)}</span>
             `;
 
             element.addEventListener('click', (e) => {
@@ -174,6 +203,12 @@ function createTreeElements(items, level) {
     });
 
     return fragment;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function isDirectoryItem(item) {
@@ -244,7 +279,7 @@ export function updateFileTreeHighlight(filePath) {
     }
 
     // Add highlight to the active file
-    const fileElement = document.querySelector(`.file-tree-item[data-path="${filePath}"]`);
+    const fileElement = document.querySelector(`.file-tree-item[data-path="${CSS.escape(filePath)}"]`);
     if (fileElement) {
         console.log('Found file element, adding highlight');
         fileElement.classList.add('active');
@@ -288,7 +323,6 @@ async function openFile(item) {
         // If tab already exists in THIS instance, just switch to it
         if (instance.tabs.has(filePath)) {
             switchTab(instanceId, filePath);
-            // Highlight will be updated inside switchTab
             return;
         }
 
@@ -300,13 +334,13 @@ async function openFile(item) {
         renderInstanceTabs(instanceId);
         setEditorModel(instanceId, filePath);
         
-        // CRITICAL: Update highlight after opening file
+        // Update highlight after opening file
         console.log('File opened, updating highlight for:', filePath);
         updateFileTreeHighlight(filePath);
         
         updateSplitButtons();
         
-        console.log('✅ File opened:', fileName);
+        console.log('File opened:', fileName);
     } catch (error) {
         console.error('Error opening file:', error);
     }
@@ -343,7 +377,8 @@ function showContextMenu(event, item) {
 
     if (!item) {
         menuItems.push(
-            { label: 'New File', icon: 'description', action: () => createNewFile(state.workspace) }
+            { label: 'New File', icon: 'description', action: () => createNewFile(state.workspace) },
+            { label: 'New Folder', icon: 'folder', action: () => createNewFolder(state.workspace) }
         );
     } else if (isDirectoryItem(item)) {
         menuItems.push(
@@ -396,6 +431,84 @@ function hideContextMenu() {
     }
 }
 
+// ===== FOLDER NAME MODAL =====
+
+function setupFolderNameModal() {
+    const modal = document.getElementById('folderNameModal');
+    const overlay = document.getElementById('folderNameOverlay');
+    const input = document.getElementById('folderNameInput');
+    const createBtn = document.getElementById('createFolderBtn');
+    const cancelBtn = document.getElementById('cancelFolderBtn');
+    
+    if (!modal || !overlay || !input || !createBtn || !cancelBtn) return;
+    
+    // Close modal on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeFolderNameModal();
+        }
+    });
+    
+    // Close on cancel button
+    cancelBtn.addEventListener('click', () => {
+        closeFolderNameModal();
+    });
+    
+    // Handle Enter key
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            createBtn.click();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            closeFolderNameModal();
+        }
+    });
+}
+
+function showFolderNameModal(parentPath, callback) {
+    const modal = document.getElementById('folderNameModal');
+    const overlay = document.getElementById('folderNameOverlay');
+    const input = document.getElementById('folderNameInput');
+    const createBtn = document.getElementById('createFolderBtn');
+    
+    if (!modal || !overlay || !input || !createBtn) return;
+    
+    // Clear previous value
+    input.value = '';
+    
+    // Show modal
+    overlay.classList.add('active');
+    
+    // Focus input
+    setTimeout(() => {
+        input.focus();
+    }, 100);
+    
+    // Setup create button handler
+    const handleCreate = async () => {
+        const folderName = input.value.trim();
+        if (!folderName) return;
+        
+        closeFolderNameModal();
+        await callback(folderName);
+    };
+    
+    // Remove old listeners
+    const newCreateBtn = createBtn.cloneNode(true);
+    createBtn.parentNode.replaceChild(newCreateBtn, createBtn);
+    
+    // Add new listener
+    newCreateBtn.addEventListener('click', handleCreate);
+}
+
+function closeFolderNameModal() {
+    const overlay = document.getElementById('folderNameOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+}
+
 // ===== CREATE FILE/FOLDER =====
 
 async function createNewFile(parentPath = null) {
@@ -412,7 +525,7 @@ async function createNewFile(parentPath = null) {
         if (filePath) {
             await invoke('create_file', { path: filePath });
             await refreshFileTree(state.workspace);
-            console.log('✅ File created:', filePath);
+            console.log('File created:', filePath);
         }
     } catch (error) {
         console.error('Error creating file:', error);
@@ -420,27 +533,26 @@ async function createNewFile(parentPath = null) {
 }
 
 async function createNewFolder(parentPath) {
-    const folderName = window.prompt('Enter folder name:');
-    if (!folderName || folderName.trim() === '') return;
-
-    try {
-        const pathSeparator = parentPath.includes('/') ? '/' : '\\';
-        const newFolderPath = `${parentPath}${pathSeparator}${folderName.trim()}`;
-        
-        await invoke('create_folder', { path: newFolderPath });
-        await refreshFileTree(state.workspace);
-        
-        console.log('✅ Folder created:', newFolderPath);
-    } catch (error) {
-        console.error('Error creating folder:', error);
-        alert(`Failed to create folder: ${error}`);
-    }
+    showFolderNameModal(parentPath, async (folderName) => {
+        try {
+            const pathSeparator = parentPath.includes('/') ? '/' : '\\';
+            const newFolderPath = `${parentPath}${pathSeparator}${folderName}`;
+            
+            await invoke('create_folder', { path: newFolderPath });
+            await refreshFileTree(state.workspace);
+            
+            console.log('Folder created:', newFolderPath);
+        } catch (error) {
+            console.error('Error creating folder:', error);
+            alert(`Failed to create folder: ${error}`);
+        }
+    });
 }
 
 // ===== RENAME =====
 
 async function renameItem(item) {
-    const itemElement = document.querySelector(`.file-tree-item[data-path="${item.path}"]`);
+    const itemElement = document.querySelector(`.file-tree-item[data-path="${CSS.escape(item.path)}"]`);
     if (!itemElement) return;
 
     const nameSpan = itemElement.querySelector('.item-name');
@@ -456,7 +568,7 @@ async function renameItem(item) {
     input.focus();
     
     const dotIndex = oldName.lastIndexOf('.');
-    if (dotIndex > 0) {
+    if (dotIndex > 0 && !isDirectoryItem(item)) {
         input.setSelectionRange(0, dotIndex);
     } else {
         input.select();
@@ -484,7 +596,7 @@ async function renameItem(item) {
 
                 await refreshFileTree(state.workspace);
                 
-                console.log('✅ Renamed:', oldName, '->', newName);
+                console.log('Renamed:', oldName, '->', newName);
             } catch (error) {
                 console.error('Error renaming item:', error);
                 alert(`Failed to rename: ${error}`);
@@ -523,32 +635,13 @@ async function deleteItem(item) {
         await invoke('delete_item', { path: item.path });
         
         // Refresh file tree
-        await refreshFileTreePreservingState();
+        await refreshFileTree(state.workspace);
         
-        console.log('✅ Deleted:', item.name);
+        console.log('Deleted:', item.name);
     } catch (error) {
         console.error('Error deleting item:', error);
         alert(`Failed to delete ${itemType}: ${error}`);
     }
-}
-
-async function refreshFileTreePreservingState() {
-    const expandedPaths = new Set();
-    document.querySelectorAll('.file-tree-item.expanded').forEach(el => {
-        const path = el.getAttribute('data-path');
-        if (path) expandedPaths.add(path);
-    });
-
-    await refreshFileTree(state.workspace);
-
-    setTimeout(() => {
-        expandedPaths.forEach(path => {
-            const element = document.querySelector(`.file-tree-item[data-path="${path}"]`);
-            if (element && !element.classList.contains('expanded')) {
-                toggleFolder(element);
-            }
-        });
-    }, 50);
 }
 
 // ===== DRAG AND DROP =====
@@ -583,7 +676,7 @@ function setupItemDragEvents(element, item) {
         element.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (draggedItem && draggedItem.path !== item.path) {
+            if (draggedItem && draggedItem.path !== item.path && !isChildOf(item.path, draggedItem.path)) {
                 element.classList.add('drag-over');
                 e.dataTransfer.dropEffect = 'move';
             }
@@ -591,7 +684,9 @@ function setupItemDragEvents(element, item) {
 
         element.addEventListener('dragleave', (e) => {
             e.stopPropagation();
-            element.classList.remove('drag-over');
+            if (!element.contains(e.relatedTarget)) {
+                element.classList.remove('drag-over');
+            }
         });
 
         element.addEventListener('drop', async (e) => {
@@ -599,11 +694,16 @@ function setupItemDragEvents(element, item) {
             e.stopPropagation();
             element.classList.remove('drag-over');
             
-            if (draggedItem && draggedItem.path !== item.path) {
+            if (draggedItem && draggedItem.path !== item.path && !isChildOf(item.path, draggedItem.path)) {
                 await moveItem(draggedItem, item.path);
             }
         });
     }
+}
+
+function isChildOf(childPath, parentPath) {
+    const pathSeparator = childPath.includes('/') ? '/' : '\\';
+    return childPath.startsWith(parentPath + pathSeparator);
 }
 
 async function moveItem(item, targetPath) {
@@ -621,9 +721,9 @@ async function moveItem(item, targetPath) {
             targetPath: newPath
         });
 
-        await refreshFileTreePreservingState();
+        await refreshFileTree(state.workspace);
         
-        console.log('✅ Moved:', item.name, 'to', targetPath);
+        console.log('Moved:', item.name, 'to', targetPath);
     } catch (error) {
         console.error('Error moving item:', error);
         alert(`Failed to move item: ${error}`);
