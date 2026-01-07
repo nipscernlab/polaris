@@ -1,5 +1,5 @@
 import * as monaco from 'monaco-editor';
-import { state, getEditorInstance, updateTabContent, updateSettings, saveSettings } from './state.js';
+import { state, getEditorInstance, updateTabContent, updateSettings, saveSettings, setFocusedInstance } from './state.js';
 import { renderInstanceTabs } from './tabs.js';
 import { updateFileTreeHighlight } from './fileTree.js';
 
@@ -148,7 +148,6 @@ function setupEditorListeners(editor, instanceId) {
 
     // Focus handling - UPDATE FILE TREE HIGHLIGHT
     editor.onDidFocusEditorText(() => {
-        const { setFocusedInstance } = require('./state.js');
         setFocusedInstance(instanceId);
         updateFocusVisuals();
         

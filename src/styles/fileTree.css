@@ -218,6 +218,40 @@
     border-color: #a78bfa;
 }
 
+/* ===== INLINE INPUT (VS CODE STYLE) ===== */
+
+.inline-input-wrapper {
+    position: relative;
+}
+
+.file-tree-item.inline-input {
+    background: rgba(139, 92, 246, 0.08);
+    border-left: 3px solid #8b5cf6;
+    padding-left: 9px;
+}
+
+.inline-name-input {
+    flex: 1;
+    background: #13131a;
+    border: 2px solid #8b5cf6;
+    border-radius: 4px;
+    color: #e8e8f0;
+    font-size: 13px;
+    padding: 4px 8px;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.inline-name-input:focus {
+    border-color: #a78bfa;
+}
+
+.inline-name-input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+}
+
 /* ===== FILE TYPE SPECIFIC ICONS ===== */
 
 .file-tree-item.spf-file .material-symbols-outlined {

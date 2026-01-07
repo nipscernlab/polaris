@@ -10,6 +10,7 @@ let fileTreeItems = [];
 let draggedItem = null;
 let contextMenu = null;
 let expandedPaths = new Set();
+let currentInlineInput = null;
 
 // ===== INITIALIZATION =====
 
@@ -25,7 +26,6 @@ export function initFileTree() {
     renderEmptyTree();
     setupContextMenu();
     setupDragAndDrop();
-    setupFolderNameModal();
     
     console.log('File tree initialized');
 }
@@ -378,12 +378,12 @@ function showContextMenu(event, item) {
     if (!item) {
         menuItems.push(
             { label: 'New File', icon: 'description', action: () => createNewFile(state.workspace) },
-            { label: 'New Folder', icon: 'folder', action: () => createNewFolder(state.workspace) }
+            { label: 'New Folder', icon: 'folder', action: () => createNewFolderInline(state.workspace) }
         );
     } else if (isDirectoryItem(item)) {
         menuItems.push(
             { label: 'New File', icon: 'description', action: () => createNewFile(item.path) },
-            { label: 'New Folder', icon: 'folder', action: () => createNewFolder(item.path) },
+            { label: 'New Folder', icon: 'folder', action: () => createNewFolderInline(item.path) },
             { label: 'Rename', icon: 'edit', action: () => renameItem(item) },
             { label: 'Delete', icon: 'delete', action: () => deleteItem(item), danger: true }
         );
@@ -431,94 +431,146 @@ function hideContextMenu() {
     }
 }
 
-// ===== FOLDER NAME MODAL =====
+// ===== INLINE FOLDER CREATION (VS CODE STYLE) =====
 
-function setupFolderNameModal() {
-    const overlay = document.getElementById('folderNameOverlay');
-    const input = document.getElementById('folderNameInput');
-    const createBtn = document.getElementById('createFolderBtn');
-    const cancelBtn = document.getElementById('cancelFolderBtn');
-    
-    if (!overlay || !input || !createBtn || !cancelBtn) {
-        console.warn('Folder name modal elements not found in DOM');
+function createNewFolderInline(parentPath) {
+    // Cancel any existing inline input
+    if (currentInlineInput) {
+        cancelInlineInput();
+    }
+
+    // Find the parent folder element
+    let parentElement;
+    let childrenContainer;
+    let level = 0;
+
+    if (parentPath === state.workspace) {
+        // Root level
+        childrenContainer = document.getElementById('fileTree');
+        level = 0;
+    } else {
+        parentElement = document.querySelector(`.file-tree-item[data-path="${CSS.escape(parentPath)}"]`);
+        if (!parentElement) {
+            console.error('Parent folder not found');
+            return;
+        }
+
+        // Expand parent folder if not already expanded
+        if (!parentElement.classList.contains('expanded')) {
+            toggleFolder(parentElement);
+        }
+
+        const wrapper = parentElement.parentElement;
+        childrenContainer = wrapper.querySelector('.file-tree-children');
+        
+        // Calculate level based on padding
+        const paddingLeft = parseInt(parentElement.style.paddingLeft || '12');
+        level = Math.floor((paddingLeft - 12) / 16) + 1;
+    }
+
+    if (!childrenContainer) {
+        console.error('Children container not found');
         return;
     }
-    
-    // Close modal on overlay click
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            closeFolderNameModal();
-        }
+
+    // Create inline input element
+    const inputWrapper = document.createElement('div');
+    inputWrapper.className = 'inline-input-wrapper';
+    inputWrapper.setAttribute('data-inline-input', 'true');
+
+    const inputElement = document.createElement('div');
+    inputElement.className = 'file-tree-item folder inline-input';
+    inputElement.style.paddingLeft = `${12 + (level * 16)}px`;
+
+    inputElement.innerHTML = `
+        <div class="expand-icon" style="visibility: hidden;"></div>
+        <span class="material-symbols-outlined folder-icon">folder</span>
+        <input type="text" class="inline-name-input" placeholder="Folder name..." />
+    `;
+
+    inputWrapper.appendChild(inputElement);
+
+    // Insert at the beginning (folders are always first)
+    const firstChild = childrenContainer.firstChild;
+    if (firstChild) {
+        childrenContainer.insertBefore(inputWrapper, firstChild);
+    } else {
+        childrenContainer.appendChild(inputWrapper);
+    }
+
+    // Get the input and focus it
+    const input = inputElement.querySelector('.inline-name-input');
+    input.focus();
+
+    // Store reference
+    currentInlineInput = {
+        wrapper: inputWrapper,
+        input: input,
+        parentPath: parentPath,
+        level: level
+    };
+
+    // Handle input events
+    input.addEventListener('blur', () => {
+        setTimeout(() => finishInlineInput(true), 100);
     });
-    
-    // Close on cancel button
-    cancelBtn.addEventListener('click', () => {
-        closeFolderNameModal();
-    });
-    
-    // Handle Enter key
-    input.addEventListener('keydown', (e) => {
+
+    input.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            createBtn.click();
+            await finishInlineInput(true);
         } else if (e.key === 'Escape') {
             e.preventDefault();
-            closeFolderNameModal();
+            cancelInlineInput();
         }
     });
 }
 
-function showFolderNameModal(parentPath, callback) {
-    const overlay = document.getElementById('folderNameOverlay');
-    const input = document.getElementById('folderNameInput');
-    const createBtn = document.getElementById('createFolderBtn');
-    
-    if (!overlay || !input || !createBtn) {
-        console.error('Folder name modal elements not found');
-        return;
-    }
-    
-    // Clear previous value
-    input.value = '';
-    
-    // Show modal with flex display
-    overlay.style.display = 'flex';
-    overlay.classList.add('active');
-    
-    // Focus input
-    setTimeout(() => {
-        input.focus();
-    }, 100);
-    
-    // Setup create button handler
-    const handleCreate = async () => {
-        const folderName = input.value.trim();
-        if (!folderName) return;
-        
-        closeFolderNameModal();
-        await callback(folderName);
-    };
-    
-    // Remove old listeners
-    const newCreateBtn = createBtn.cloneNode(true);
-    createBtn.parentNode.replaceChild(newCreateBtn, createBtn);
-    
-    // Add new listener
-    newCreateBtn.addEventListener('click', handleCreate);
-}
+async function finishInlineInput(save) {
+    if (!currentInlineInput) return;
 
-function closeFolderNameModal() {
-    const overlay = document.getElementById('folderNameOverlay');
-    if (overlay) {
-        overlay.classList.remove('active');
-        // Use setTimeout to allow animation to complete
-        setTimeout(() => {
-            overlay.style.display = 'none';
-        }, 200);
+    const { wrapper, input, parentPath } = currentInlineInput;
+    const folderName = input.value.trim();
+
+    if (save && folderName) {
+        try {
+            const pathSeparator = parentPath.includes('/') ? '/' : '\\';
+            const newFolderPath = `${parentPath}${pathSeparator}${folderName}`;
+            
+            await invoke('create_folder', { path: newFolderPath });
+            console.log('Folder created:', newFolderPath);
+        } catch (error) {
+            console.error('Error creating folder:', error);
+            alert(`Failed to create folder: ${error}`);
+        }
+    }
+
+    // Remove input
+    if (wrapper && wrapper.parentNode) {
+        wrapper.remove();
+    }
+
+    currentInlineInput = null;
+
+    // Refresh file tree to show new folder
+    if (save && folderName) {
+        await refreshFileTree(state.workspace);
     }
 }
 
-// ===== CREATE FILE/FOLDER =====
+function cancelInlineInput() {
+    if (!currentInlineInput) return;
+
+    const { wrapper } = currentInlineInput;
+    
+    if (wrapper && wrapper.parentNode) {
+        wrapper.remove();
+    }
+
+    currentInlineInput = null;
+}
+
+// ===== CREATE FILE =====
 
 async function createNewFile(parentPath = null) {
     try {
@@ -539,23 +591,6 @@ async function createNewFile(parentPath = null) {
     } catch (error) {
         console.error('Error creating file:', error);
     }
-}
-
-async function createNewFolder(parentPath) {
-    showFolderNameModal(parentPath, async (folderName) => {
-        try {
-            const pathSeparator = parentPath.includes('/') ? '/' : '\\';
-            const newFolderPath = `${parentPath}${pathSeparator}${folderName}`;
-            
-            await invoke('create_folder', { path: newFolderPath });
-            await refreshFileTree(state.workspace);
-            
-            console.log('Folder created:', newFolderPath);
-        } catch (error) {
-            console.error('Error creating folder:', error);
-            alert(`Failed to create folder: ${error}`);
-        }
-    });
 }
 
 // ===== RENAME =====
