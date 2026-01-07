@@ -160,12 +160,20 @@ function setupEditorListeners(editor, instanceId) {
         }
     });
     
-    // Also update on model change
+    // Update highlight when model changes
     editor.onDidChangeModel(() => {
         const instance = getEditorInstance(instanceId);
         if (instance && instance.activeTab && instance.focused) {
             console.log('Model changed, updating highlight for:', instance.activeTab);
             updateFileTreeHighlight(instance.activeTab);
+        }
+    });
+
+    // Also update on blur to ensure consistency
+    editor.onDidBlurEditorText(() => {
+        const instance = getEditorInstance(instanceId);
+        if (instance && instance.activeTab) {
+            console.log('Editor blurred, keeping highlight for:', instance.activeTab);
         }
     });
 }

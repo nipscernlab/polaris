@@ -147,6 +147,9 @@ function performCloseTab(instanceId, filePath) {
             instance.editor.setModel(null);
         }
         
+        // Clear file tree highlight when no tabs are open
+        updateFileTreeHighlight(null);
+        
         // Check if we should close this empty instance
         checkAndCloseEmptyInstances();
         
@@ -156,7 +159,6 @@ function performCloseTab(instanceId, filePath) {
             if (welcomeScreen) {
                 welcomeScreen.classList.remove('hidden');
             }
-            updateFileTreeHighlight(null);
         }
     } else {
         // Switch to another tab in this instance
@@ -221,7 +223,7 @@ export function closeFileFromAllInstances(filePath) {
     // Check if we need to close empty instances
     checkAndCloseEmptyInstances();
     
-    // If all instances are closed, show welcome screen
+    // If all instances are closed, show welcome screen and clear highlight
     if (state.editorInstances.length === 0) {
         const welcomeScreen = document.getElementById('welcomeScreen');
         if (welcomeScreen) {
@@ -234,6 +236,7 @@ export function closeFileFromAllInstances(filePath) {
         if (focusedInstance && focusedInstance.activeTab) {
             updateFileTreeHighlight(focusedInstance.activeTab);
         } else {
+            // No active tab in focused instance, clear highlight
             updateFileTreeHighlight(null);
         }
     }

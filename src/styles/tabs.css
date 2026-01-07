@@ -1,0 +1,159 @@
+/* ===== EDITOR TABS CONTAINER ===== */
+
+.editor-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 4px 8px;
+    min-height: 40px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Horizontal scrolling with mouse wheel */
+.editor-tabs {
+    scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for tabs */
+.editor-tabs::-webkit-scrollbar {
+    height: 6px;
+}
+
+.editor-tabs::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.editor-tabs::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.editor-tabs::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ===== INDIVIDUAL TAB ===== */
+
+.editor-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 120px;
+    max-width: 200px;
+}
+
+.editor-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.editor-tab.active {
+    background: var(--bg-primary);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+.editor-tab .material-symbols-outlined {
+    font-size: 16px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.editor-tab .tab-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.editor-tab.active .tab-name {
+    color: rgba(255, 255, 255, 1);
+}
+
+/* ===== MODIFIED INDICATOR ===== */
+
+.editor-tab.modified .tab-name {
+    font-style: italic;
+}
+
+.editor-tab .modified-indicator {
+    color: var(--accent);
+    font-size: 12px;
+    margin-left: -4px;
+    flex-shrink: 0;
+}
+
+/* ===== CLOSE BUTTON ===== */
+
+.tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.15s ease;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.editor-tab:hover .tab-close {
+    opacity: 0.6;
+}
+
+.tab-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+.tab-close .material-symbols-outlined {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.editor-tab.active .tab-close {
+    opacity: 0.7;
+}
+
+/* ===== EMPTY STATE ===== */
+
+.editor-tabs:empty::after {
+    content: 'No files open';
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 13px;
+    padding: 8px;
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+    .editor-tab {
+        min-width: 100px;
+        max-width: 150px;
+        padding: 6px 10px;
+    }
+    
+    .editor-tab .tab-name {
+        font-size: 12px;
+    }
+}

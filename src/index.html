@@ -161,6 +161,24 @@
         </div>
     </div>
 
+    <!-- Folder Name Modal -->
+    <div class="modal-overlay" id="folderNameOverlay" style="display: none;">
+        <div class="dialog-modal" id="folderNameModal">
+            <div class="dialog-icon">
+                <span class="material-symbols-outlined">create_new_folder</span>
+            </div>
+            <h2>Create New Folder</h2>
+            <div class="input-group">
+                <label for="folderNameInput">Folder Name</label>
+                <input type="text" id="folderNameInput" placeholder="Enter folder name..." autocomplete="off">
+            </div>
+            <div class="dialog-actions">
+                <button class="btn-secondary" id="cancelFolderBtn">Cancel</button>
+                <button class="btn-primary" id="createFolderBtn">Create</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min.js"></script>
     <script type="module" src="./scripts/main.js"></script>
 </body>

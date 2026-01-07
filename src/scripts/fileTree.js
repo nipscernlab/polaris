@@ -434,13 +434,15 @@ function hideContextMenu() {
 // ===== FOLDER NAME MODAL =====
 
 function setupFolderNameModal() {
-    const modal = document.getElementById('folderNameModal');
     const overlay = document.getElementById('folderNameOverlay');
     const input = document.getElementById('folderNameInput');
     const createBtn = document.getElementById('createFolderBtn');
     const cancelBtn = document.getElementById('cancelFolderBtn');
     
-    if (!modal || !overlay || !input || !createBtn || !cancelBtn) return;
+    if (!overlay || !input || !createBtn || !cancelBtn) {
+        console.warn('Folder name modal elements not found in DOM');
+        return;
+    }
     
     // Close modal on overlay click
     overlay.addEventListener('click', (e) => {
@@ -467,17 +469,20 @@ function setupFolderNameModal() {
 }
 
 function showFolderNameModal(parentPath, callback) {
-    const modal = document.getElementById('folderNameModal');
     const overlay = document.getElementById('folderNameOverlay');
     const input = document.getElementById('folderNameInput');
     const createBtn = document.getElementById('createFolderBtn');
     
-    if (!modal || !overlay || !input || !createBtn) return;
+    if (!overlay || !input || !createBtn) {
+        console.error('Folder name modal elements not found');
+        return;
+    }
     
     // Clear previous value
     input.value = '';
     
-    // Show modal
+    // Show modal with flex display
+    overlay.style.display = 'flex';
     overlay.classList.add('active');
     
     // Focus input
@@ -506,6 +511,10 @@ function closeFolderNameModal() {
     const overlay = document.getElementById('folderNameOverlay');
     if (overlay) {
         overlay.classList.remove('active');
+        // Use setTimeout to allow animation to complete
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 200);
     }
 }
 
@@ -644,7 +653,7 @@ async function deleteItem(item) {
     }
 }
 
-// ===== DRAG AND DROP =====
+// ===== IMPROVED DRAG AND DROP =====
 
 function setupDragAndDrop() {
     const container = document.getElementById('fileTree');
@@ -653,6 +662,19 @@ function setupDragAndDrop() {
     container.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+        
+        // Remove drag-over from all items
+        document.querySelectorAll('.file-tree-item.drag-over').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+    });
+
+    container.addEventListener('drop', (e) => {
+        e.preventDefault();
+        // Clean up any remaining drag-over classes
+        document.querySelectorAll('.file-tree-item.drag-over').forEach(el => {
+            el.classList.remove('drag-over');
+        });
     });
 }
 
@@ -662,29 +684,46 @@ function setupItemDragEvents(element, item) {
         element.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', item.path);
+        
+        console.log('Drag started:', item.path);
     });
 
-    element.addEventListener('dragend', () => {
+    element.addEventListener('dragend', (e) => {
         element.classList.remove('dragging');
         document.querySelectorAll('.drag-over').forEach(el => {
             el.classList.remove('drag-over');
         });
+        
+        console.log('Drag ended');
         draggedItem = null;
     });
 
+    // Allow dropping on folders
     if (isDirectoryItem(item)) {
+        element.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (draggedItem && draggedItem.path !== item.path && !isChildOf(item.path, draggedItem.path)) {
+                element.classList.add('drag-over');
+            }
+        });
+
         element.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            
             if (draggedItem && draggedItem.path !== item.path && !isChildOf(item.path, draggedItem.path)) {
-                element.classList.add('drag-over');
                 e.dataTransfer.dropEffect = 'move';
+            } else {
+                e.dataTransfer.dropEffect = 'none';
             }
         });
 
         element.addEventListener('dragleave', (e) => {
             e.stopPropagation();
-            if (!element.contains(e.relatedTarget)) {
+            // Only remove if we're actually leaving this element
+            if (e.target === element && !element.contains(e.relatedTarget)) {
                 element.classList.remove('drag-over');
             }
         });
@@ -692,9 +731,11 @@ function setupItemDragEvents(element, item) {
         element.addEventListener('drop', async (e) => {
             e.preventDefault();
             e.stopPropagation();
+            
             element.classList.remove('drag-over');
             
             if (draggedItem && draggedItem.path !== item.path && !isChildOf(item.path, draggedItem.path)) {
+                console.log('Dropping', draggedItem.path, 'into', item.path);
                 await moveItem(draggedItem, item.path);
             }
         });
@@ -713,8 +754,11 @@ async function moveItem(item, targetPath) {
         const newPath = `${targetPath}${pathSeparator}${fileName}`;
 
         if (item.path === newPath) {
+            console.log('Source and target are the same, skipping move');
             return;
         }
+
+        console.log('Moving item:', item.path, '->', newPath);
 
         await invoke('move_item', {
             sourcePath: item.path,
@@ -723,7 +767,7 @@ async function moveItem(item, targetPath) {
 
         await refreshFileTree(state.workspace);
         
-        console.log('Moved:', item.name, 'to', targetPath);
+        console.log('Successfully moved:', item.name, 'to', targetPath);
     } catch (error) {
         console.error('Error moving item:', error);
         alert(`Failed to move item: ${error}`);
