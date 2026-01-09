@@ -4,6 +4,7 @@ import { state, addTab, getFocusedInstance } from './state.js';
 import { setEditorModel } from './monaco.js';
 import { renderInstanceTabs, switchTab, closeFileFromAllInstances } from './tabs.js';
 import { ensureEditorExists, updateSplitButtons } from './splitEditor.js';
+import { openWavetraceViewer } from './wavetrace.js';
 
 // File tree state
 let fileTreeItems = [];
@@ -158,10 +159,14 @@ function createTreeElements(items, level) {
             });
         } else {
             const isSpfFile = item.name.endsWith('.spf');
+            const isVcdFile = item.name.endsWith('.vcd');
+            
             element.classList.add('file');
             
             if (isSpfFile) {
                 element.classList.add('spf-file');
+            } else if (isVcdFile) {
+                element.classList.add('vcd-file');
             }
             
             const icon = getFileIcon(item.name);
@@ -233,6 +238,7 @@ function getFileIcon(fileName) {
         'rs': 'code',
         'v': 'memory',
         'sv': 'memory',
+        'vcd': 'show_chart',
         'c': 'code',
         'cpp': 'code',
         'h': 'code',
@@ -309,6 +315,13 @@ export function updateFileTreeHighlight(filePath) {
 async function openFile(item) {
     const filePath = item.path;
     const fileName = item.name;
+
+    // INTERCEPT VCD FILES
+    if (fileName.endsWith('.vcd')) {
+        console.log('Opening VCD file in Wavetrace viewer:', fileName);
+        await openWavetraceViewer(filePath, fileName);
+        return;
+    }
 
     try {
         const instance = await ensureEditorExists();

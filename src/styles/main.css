@@ -6,6 +6,7 @@
 @import url(./polaris.css);
 @import url(./tabs.css);
 @import url(./modal.css);
+@import url(./wavetrace.css);
 
 /* ===== VARIABLES ===== */
 :root {
@@ -306,6 +307,24 @@ html, body {
     margin-bottom: 16px;
 }
 
+/* VCD File Styling */
+.file-tree-item.vcd-file {
+    position: relative;
+}
+
+.file-tree-item.vcd-file::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: linear-gradient(180deg, var(--accent), var(--purple-600));
+    border-radius: 0 2px 2px 0;
+    opacity: 0.6;
+}
+
 /* ===== EDITOR AREA ===== */
 .editor-area {
     flex: 1;
@@ -313,6 +332,7 @@ html, body {
     flex-direction: column;
     overflow: hidden;
     background: var(--bg-primary);
+    position: relative;
 }
 
 .editor-container {
@@ -594,13 +614,13 @@ html, body {
 
 /* ===== ACTIVITY BAR (VERTICAL TOOLBAR) ===== */
 .activity-bar {
-    width: 48px; /* Largura padrão estilo VS Code */
+    width: 48px;
     height: 100%;
-    background: var(--bg-primary); /* Fundo mais escuro para contraste */
+    background: var(--bg-primary);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Separa os grupos topo/base */
+    justify-content: space-between;
     flex-shrink: 0;
     z-index: 20;
 }
@@ -620,7 +640,7 @@ html, body {
     justify-content: center;
     background: transparent;
     border: none;
-    color: var(--text-muted); /* Cor mais apagada para inativos */
+    color: var(--text-muted);
     cursor: pointer;
     position: relative;
     transition: all var(--transition);
@@ -630,12 +650,10 @@ html, body {
     color: var(--text-primary);
 }
 
-/* Estado Ativo (ícone selecionado) */
 .activity-item.active {
     color: var(--text-primary);
 }
 
-/* Indicador lateral de seleção (barrinha colorida à esquerda) */
 .activity-item.active::before {
     content: '';
     position: absolute;
@@ -646,9 +664,8 @@ html, body {
     background: var(--accent);
 }
 
-/* Ajuste de tamanho dos ícones na barra principal */
 .activity-item .material-symbols-outlined {
-    font-size: 24px; /* Ícones ligeiramente maiores que o padrão */
+    font-size: 24px;
     opacity: 0.8;
 }
 
@@ -657,9 +674,6 @@ html, body {
     opacity: 1;
 }
 
-/* Ajuste fino para a Sidebar quando a Activity Bar existe */
-/* Remove a borda esquerda da sidebar se houver conflito visual, 
-   mas geralmente a borda direita da Activity Bar já resolve. */
 .sidebar {
     border-left: none; 
 }

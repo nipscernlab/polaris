@@ -7,6 +7,7 @@ import { initFileTree, refreshFileTree } from './fileTree.js';
 import { initCommandPalette } from './commandPalette.js';
 import { initKeyboardShortcuts } from './keyboard.js';
 import { initSidebarResizer } from './sidebarResizer.js';
+import { closeWavetraceViewer, wavetraceState } from './wavetrace.js';
 
 // ===== INITIALIZATION =====
 async function initApp() {
@@ -28,7 +29,7 @@ async function initApp() {
 
         console.log('POLARIS Editor initialized');
     } catch (error) {
-        console.error('❌ Error initializing POLARIS:', error);
+        console.error('⚠ Error initializing POLARIS:', error);
     }
 }
 
@@ -59,6 +60,11 @@ function initWindowControls() {
 
     document.getElementById('closeBtn')?.addEventListener('click', async () => {
         try {
+            // Close wavetrace if active
+            if (wavetraceState.active) {
+                closeWavetraceViewer();
+            }
+            
             // Check for unsaved changes
             const { hasUnsavedChanges } = await import('./tabs.js');
             if (hasUnsavedChanges()) {
@@ -120,6 +126,11 @@ async function openFolder() {
 
 async function loadWorkspace(folderPath) {
     try {
+        // Close wavetrace if active
+        if (wavetraceState.active) {
+            closeWavetraceViewer();
+        }
+        
         closeAllTabs();
         
         const folderName = folderPath.split(/[/\\]/).pop();

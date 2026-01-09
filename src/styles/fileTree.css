@@ -156,6 +156,40 @@
     opacity: 0.8;
 }
 
+/* Add this to your existing fileTree.css file */
+
+/* ===== VCD FILE STYLING ===== */
+.file-tree-item.vcd-file {
+    position: relative;
+}
+
+.file-tree-item.vcd-file::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: linear-gradient(180deg, #00f5ff, #8b5cf6);
+    border-radius: 0 2px 2px 0;
+    opacity: 0.7;
+    box-shadow: 0 0 6px rgba(0, 245, 255, 0.4);
+}
+
+.file-tree-item.vcd-file:hover::before {
+    opacity: 1;
+    box-shadow: 0 0 12px rgba(0, 245, 255, 0.6);
+}
+
+.file-tree-item.vcd-file .material-symbols-outlined {
+    color: #00f5ff;
+}
+
+.file-tree-item.vcd-file:hover {
+    background: rgba(0, 245, 255, 0.05);
+}
+
 /* ===== DRAG AND DROP ===== */
 
 .file-tree-item.dragging {

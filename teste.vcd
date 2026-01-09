@@ -1,0 +1,88 @@
+$date
+   January 8, 2026
+$end
+$version
+   Test VCD Generator 1.0
+$end
+$timescale 1ns $end
+
+$scope module top $end
+   $scope module cpu $end
+      $var wire 1 ! clk $end
+      $var wire 1 " rst $end
+      $var wire 1 # enable $end
+      $var wire 8 $ data_bus $end
+      $var wire 4 % state $end
+   $upscope $end
+
+   $scope module memory $end
+      $var wire 8 & mem_data $end
+      $var wire 1 ' mem_we $end
+   $upscope $end
+$upscope $end
+
+$enddefinitions $end
+
+#0
+0!
+1"
+0#
+b00000000 $
+b0000 %
+b00000000 &
+0'
+
+#5
+1!
+
+#10
+0!
+1#
+
+#15
+b0001 %
+
+#20
+b00000001 $
+b00000001 &
+
+#25
+1'
+
+#30
+b00000010 $
+b00000010 &
+
+#35
+0'
+
+#40
+b0010 %
+
+#50
+1!
+b00000100 $
+b00000100 &
+
+#55
+0!
+
+#60
+b0100 %
+
+#70
+b00001000 $
+b00001000 &
+
+#80
+b1000 %
+
+#100
+1"
+0#
+b00000000 $
+b00000000 &
+0'
+
+#120
+0"
