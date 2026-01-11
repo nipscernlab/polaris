@@ -49,8 +49,8 @@
     "active": true,
     "targets": "all",
     "icon": [
-      "icons/aurora.png",
-      "icons/aurora.ico"
+      "icons/polaris.png",
+      "icons/polaris.ico"
     ]
   },
   "plugins": {

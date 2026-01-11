@@ -1,88 +1,137 @@
 $date
-   January 8, 2026
+   Fri Jan 09 14:10:00 2026
 $end
 $version
-   Test VCD Generator 1.0
+   Gerado por Gemini AI - Exemplo Complexo
 $end
-$timescale 1ns $end
-
-$scope module top $end
-   $scope module cpu $end
-      $var wire 1 ! clk $end
-      $var wire 1 " rst $end
-      $var wire 1 # enable $end
-      $var wire 8 $ data_bus $end
-      $var wire 4 % state $end
-   $upscope $end
-
-   $scope module memory $end
-      $var wire 8 & mem_data $end
-      $var wire 1 ' mem_we $end
-   $upscope $end
+$timescale
+   1ns
+$end
+$scope module system_soc $end
+$var wire 1 ! clk $end
+$var wire 1 " rst_n $end
+$var wire 1 # irq_trigger $end
+$var wire 1 $ pwm_out $end
+$var wire 8 % counter [7:0] $end
 $upscope $end
-
 $enddefinitions $end
 
 #0
+$dumpvars
 0!
-1"
+0"
 0#
-b00000000 $
-b0000 %
-b00000000 &
-0'
+0$
+b00000000 %
+$end
+
+$comment --- Inicio do Reset (Reset ativo por 20ns) --- $end
 
 #5
 1!
 
 #10
 0!
-1#
 
 #15
-b0001 %
+1!
 
 #20
-b00000001 $
-b00000001 &
+0!
+1"
+$comment Reset solto, o contador comeca a subir $end
 
+$comment --- Ciclo 1: Contador = 1 --- $end
 #25
-1'
+1!
+b00000001 %
+1$
 
 #30
-b00000010 $
-b00000010 &
-
-#35
-0'
-
-#40
-b0010 %
-
-#50
-1!
-b00000100 $
-b00000100 &
-
-#55
 0!
 
+$comment --- Ciclo 2: Contador = 2 --- $end
+#35
+1!
+b00000010 %
+
+#40
+0!
+
+$comment --- Ciclo 3: Contador = 3, PWM cai (Duty Cycle Curto) --- $end
+#45
+1!
+b00000011 %
+0$
+
+#50
+0!
+
+$comment --- Ciclo 4: Contador = 4 --- $end
+#55
+1!
+b00000100 %
+
 #60
-b0100 %
+0!
+1$
+
+$comment --- Ciclo 5: Contador = 5 (Disparo da Interrupcao IRQ) --- $end
+#65
+1!
+b00000101 %
+1#
 
 #70
-b00001000 $
-b00001000 &
+0!
+0#
+$comment IRQ durou apenas meio ciclo $end
+
+$comment --- Ciclo 6: Contador = 6 --- $end
+#75
+1!
+b00000110 %
 
 #80
-b1000 %
+0!
+
+$comment --- Ciclo 7: Contador = 7 (PWM fica alto mais tempo agora) --- $end
+#85
+1!
+b00000111 %
+
+#90
+0!
+
+$comment --- Ciclo 8: Contador = 8 --- $end
+#95
+1!
+b00001000 %
 
 #100
-1"
-0#
-b00000000 $
-b00000000 &
-0'
+0!
+
+$comment --- Ciclo 9: Contador = 9 --- $end
+#105
+1!
+b00001001 %
+
+#110
+0!
+
+$comment --- Ciclo 10: Contador = 10, PWM cai --- $end
+#115
+1!
+b00001010 %
+0$
 
 #120
-0"
+0!
+
+$comment --- Ciclo 11: Contador = 11, Salto grande no bus para teste visual --- $end
+#125
+1!
+b11111111 %
+
+#130
+0!
