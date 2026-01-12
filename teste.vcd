@@ -1,31 +1,26 @@
 $date
-   Fri Jan 09 14:10:00 2026
+    2026-01-12
 $end
 $version
-   Gerado por Gemini AI - Exemplo Complexo
+    VCD counter step 2
 $end
-$timescale
-   1ns
-$end
-$scope module system_soc $end
+$timescale 1ns $end
+
+$scope module logic $end
 $var wire 1 ! clk $end
-$var wire 1 " rst_n $end
-$var wire 1 # irq_trigger $end
-$var wire 1 $ pwm_out $end
-$var wire 8 % counter [7:0] $end
+$var wire 1 " A   $end
+$var wire 1 # B   $end
+$var wire 1 $ y   $end
+$var wire 8 % cnt $end
 $upscope $end
 $enddefinitions $end
 
 #0
-$dumpvars
 0!
 0"
 0#
 0$
 b00000000 %
-$end
-
-$comment --- Inicio do Reset (Reset ativo por 20ns) --- $end
 
 #5
 1!
@@ -35,103 +30,210 @@ $comment --- Inicio do Reset (Reset ativo por 20ns) --- $end
 
 #15
 1!
+1"
+1#
+1$
+b00000010 %
 
 #20
 0!
-1"
-$comment Reset solto, o contador comeca a subir $end
 
-$comment --- Ciclo 1: Contador = 1 --- $end
 #25
 1!
-b00000001 %
-1$
+0"
+1#
+0$
+b00000100 %
 
 #30
 0!
 
-$comment --- Ciclo 2: Contador = 2 --- $end
 #35
 1!
-b00000010 %
+1"
+0#
+0$
+b00000110 %
 
 #40
 0!
 
-$comment --- Ciclo 3: Contador = 3, PWM cai (Duty Cycle Curto) --- $end
 #45
 1!
-b00000011 %
+0"
+0#
 0$
+b00001000 %
 
 #50
 0!
 
-$comment --- Ciclo 4: Contador = 4 --- $end
 #55
 1!
-b00000100 %
+1"
+1#
+1$
+b00001010 %
 
 #60
 0!
-1$
 
-$comment --- Ciclo 5: Contador = 5 (Disparo da Interrupcao IRQ) --- $end
 #65
 1!
-b00000101 %
+0"
 1#
+0$
+b00001100 %
 
 #70
 0!
-0#
-$comment IRQ durou apenas meio ciclo $end
 
-$comment --- Ciclo 6: Contador = 6 --- $end
 #75
 1!
-b00000110 %
+1"
+0#
+0$
+b00001110 %
 
 #80
 0!
 
-$comment --- Ciclo 7: Contador = 7 (PWM fica alto mais tempo agora) --- $end
 #85
 1!
-b00000111 %
+0"
+0#
+0$
+b00010000 %
 
 #90
 0!
 
-$comment --- Ciclo 8: Contador = 8 --- $end
 #95
 1!
-b00001000 %
+1"
+1#
+1$
+b00010010 %
 
 #100
 0!
 
-$comment --- Ciclo 9: Contador = 9 --- $end
 #105
 1!
-b00001001 %
+0"
+1#
+0$
+b00010100 %
 
 #110
 0!
 
-$comment --- Ciclo 10: Contador = 10, PWM cai --- $end
 #115
 1!
-b00001010 %
+1"
+0#
 0$
+b00010110 %
 
 #120
 0!
 
-$comment --- Ciclo 11: Contador = 11, Salto grande no bus para teste visual --- $end
 #125
 1!
-b11111111 %
+0"
+0#
+0$
+b00011000 %
 
 #130
+0!
+
+#135
+1!
+1"
+1#
+1$
+b00011010 %
+
+#140
+0!
+
+#145
+1!
+0"
+1#
+0$
+b00011100 %
+
+#150
+0!
+
+#155
+1!
+1"
+0#
+0$
+b00011110 %
+
+#160
+0!
+
+#165
+1!
+0"
+0#
+0$
+b00100000 %
+
+#170
+0!
+
+#175
+1!
+1"
+1#
+1$
+b00100010 %
+
+#180
+0!
+
+#185
+1!
+0"
+1#
+0$
+b00100100 %
+
+#190
+0!
+
+#195
+1!
+1"
+0#
+0$
+b00100110 %
+
+#200
+0!
+
+#205
+1!
+0"
+0#
+0$
+b00101000 %
+
+#210
+0!
+
+#215
+1!
+1"
+1#
+1$
+b00101010 %
+
+#220
 0!

@@ -1,54 +1,37 @@
 <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Gradiente aurora vibrante difuso -->
-    <linearGradient id="aurora1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#00ffff;stop-opacity:1" />
-      <stop offset="15%" style="stop-color:#00ff88;stop-opacity:1" />
-      <stop offset="30%" style="stop-color:#00ccff;stop-opacity:1" />
-      <stop offset="45%" style="stop-color:#0099ff;stop-opacity:1" />
-      <stop offset="60%" style="stop-color:#6600ff;stop-opacity:1" />
-      <stop offset="75%" style="stop-color:#cc00ff;stop-opacity:1" />
-      <stop offset="90%" style="stop-color:#ff0099;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#00ffcc;stop-opacity:1" />
+    <!-- Gradiente roxo profissional -->
+    <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6B4FBB;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4A3680;stop-opacity:1" />
     </linearGradient>
     
-    <!-- Gradiente difuso diagonal -->
-    <linearGradient id="aurora2" x1="30%" y1="30%" x2="70%" y2="70%">
-      <stop offset="0%" style="stop-color:#00ffaa;stop-opacity:0.85" />
-      <stop offset="20%" style="stop-color:#00ccff;stop-opacity:0.75" />
-      <stop offset="40%" style="stop-color:#0066ff;stop-opacity:0.85" />
-      <stop offset="60%" style="stop-color:#9933ff;stop-opacity:0.75" />
-      <stop offset="80%" style="stop-color:#ff00cc;stop-opacity:0.85" />
-      <stop offset="100%" style="stop-color:#00ffdd;stop-opacity:0.75" />
-    </linearGradient>
-    
-    <!-- Gradiente difuso invertido -->
-    <linearGradient id="aurora3" x1="80%" y1="20%" x2="20%" y2="80%">
-      <stop offset="0%" style="stop-color:#ff00ff;stop-opacity:0.6" />
-      <stop offset="25%" style="stop-color:#0099ff;stop-opacity:0.7" />
-      <stop offset="50%" style="stop-color:#00ffaa;stop-opacity:0.6" />
-      <stop offset="75%" style="stop-color:#ff0088;stop-opacity:0.7" />
-      <stop offset="100%" style="stop-color:#00ddff;stop-opacity:0.6" />
-    </linearGradient>
+    <!-- Sombra sutil -->
+    <filter id="shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
   
-  <!-- Estrela de 4 pontas ampliada -->
-  <path d="
-    M 200 5
-    Q 225 80, 255 125
-    Q 285 170, 395 200
-    Q 285 230, 255 275
-    Q 225 320, 200 395
-    Q 175 320, 145 275
-    Q 115 230, 5 200
-    Q 115 170, 145 125
-    Q 175 80, 200 5
-    Z"
-    fill="url(#aurora1)"
-    opacity="0.95"
+  <!-- Fundo branco com bordas bem arredondadas -->
+  <rect 
+    x="0" 
+    y="0" 
+    width="400" 
+    height="400" 
+    rx="64" 
+    ry="64" 
+    fill="#F8F9FA"
   />
   
-  <!-- Camada de aurora difusa -->
+  <!-- Estrela com gradiente roxo profissional e sombra -->
   <path d="
     M 200 5
     Q 225 80, 255 125
@@ -60,23 +43,8 @@
     Q 115 170, 145 125
     Q 175 80, 200 5
     Z"
-    fill="url(#aurora2)"
-    opacity="0.7"
-  />
-  
-  <!-- Camada adicional de brilho -->
-  <path d="
-    M 200 5
-    Q 225 80, 255 125
-    Q 285 170, 395 200
-    Q 285 230, 255 275
-    Q 225 320, 200 395
-    Q 175 320, 145 275
-    Q 115 230, 5 200
-    Q 115 170, 145 125
-    Q 175 80, 200 5
-    Z"
-    fill="url(#aurora3)"
-    opacity="0.5"
+    fill="url(#purpleGradient)"
+    filter="url(#shadow)"
+    opacity="1"
   />
 </svg>
