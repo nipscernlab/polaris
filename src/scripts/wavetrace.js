@@ -1,3 +1,6 @@
+// TENTANDO RECUPERAR O HISTORICO DE ALTERACOES
+
+
 import * as PIXI from 'pixi.js';
 import { invoke } from '@tauri-apps/api/core';
 
