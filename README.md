@@ -18,4 +18,4 @@ The interface provides tight integration with the SAPHO toolchain, enabling user
 - Run and analyze simulations using **YAWT (Wave Tracer)**
 - Customize workflows and integrations through a flexible **API-driven system**
 
-POLARIS was designed as a **lightweight and modular successor to AURORA**, serving as the primary visual and interactive environment for SAPHO-based hardware and processor development.
+POLARIS was designed as a **lightweight and modular successor to AURORA**, serving as the primary visual and interactive environment for SAPHO-based hardware and processor development
