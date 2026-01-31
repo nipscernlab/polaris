@@ -8,6 +8,7 @@ import { initCommandPalette } from './commandPalette.js';
 import { initKeyboardShortcuts } from './keyboard.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { closeWavetraceViewer, wavetraceState } from './wavetrace.js';
+import { initTerminal } from './terminal.js';
 
 // ===== INITIALIZATION =====
 async function initApp() {
@@ -26,6 +27,12 @@ async function initApp() {
         initSidebarResizer();
         setupFolderOpening();
         setupActivityBar();
+        initSidebarResizer();
+
+        const terminal = initTerminal();
+        window.terminal = terminal;
+
+        console.log('POLARIS Editor initialized');
 
         console.log('POLARIS Editor initialized');
     } catch (error) {
