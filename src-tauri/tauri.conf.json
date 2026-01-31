@@ -49,7 +49,7 @@
     "active": true,
     "targets": "all",
     "icon": [
-      "icons/polaris.png",
+      "icons/polaris.svg",
       "icons/polaris.ico"
     ]
   },
