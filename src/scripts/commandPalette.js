@@ -57,7 +57,7 @@ function setupCommands() {
             label: 'Zoom In',
             description: 'Increase interface zoom',
             icon: 'zoom_in',
-            shortcut: 'Ctrl++',
+            shortcut: 'Ctrl+＋',
             action: () => zoomInterface(0.1)
         },
         {

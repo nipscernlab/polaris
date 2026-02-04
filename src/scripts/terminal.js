@@ -262,7 +262,7 @@ class IntegratedTerminal {
             convertEol: true,
         });
 
-        const fitAddon = new FitAddon();
+                const fitAddon = new FitAddon();
         const webLinksAddon = new WebLinksAddon();
         const searchAddon = new SearchAddon();
         
@@ -281,6 +281,16 @@ class IntegratedTerminal {
             shell: shellPath,
             cwd: cwd
         });
+        requestAnimationFrame(() => {
+            fitAddon.fit(); // Recalcula o tamanho baseado na div visível
+            if (term.cols > 0 && term.rows > 0) {
+                invoke('resize_pty', { 
+                    ptyId, 
+                    cols: term.cols, 
+                    rows: term.rows 
+                }).catch(console.error);
+            }   
+        }); 
 
         let defaultName = 'bash';
         if (platform === 'windows') {
