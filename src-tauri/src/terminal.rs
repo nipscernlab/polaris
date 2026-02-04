@@ -15,7 +15,9 @@ pub struct PtyOutputEvent {
 pub struct PtyProcess {
     #[cfg(unix)]
     pair: Arc<Mutex<PtyPair>>,
-    
+    #[cfg(unix)]
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
+
     #[cfg(windows)]
     child: Arc<Mutex<std::process::Child>>,
     #[cfg(windows)]
@@ -108,7 +110,9 @@ pub fn create_pty(
     
     let mut cmd = CommandBuilder::new(&shell);
     cmd.cwd(&cwd);
+    cmd.env("TERM", "xterm-256color");
     
+    let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
     pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     
     let mut next_id = state.next_id.lock().unwrap();
@@ -116,6 +120,7 @@ pub fn create_pty(
     *next_id += 1;
     
     let pty_process = PtyProcess {
+        writer: Arc::new(Mutex::new(writer)),
         pair: Arc::new(Mutex::new(pair)),
         stop_signal: Arc::new(Mutex::new(false)),
     };
@@ -175,27 +180,30 @@ pub async fn start_pty_stream(
     let stop_signal = pty.stop_signal.clone();
     let event_name = format!("pty-output-{}", pty_id);
     
-    tauri::async_runtime::spawn(async move {
-        let mut reader = {
+   tauri::async_runtime::spawn(async move {
+        let reader: Box<dyn Read + Send> = {
             let pair_lock = pair.lock().unwrap();
             pair_lock.master.try_clone_reader().unwrap()
         };
+        let shared_reader = Arc::new(Mutex::new(reader));
         
         loop {
-            if *stop_signal.lock().unwrap() {
+            if *stop_signal.lock().unwrap() { 
                 break;
             }
             
-            let read_result = tokio::task::spawn_blocking({
-                let mut reader_clone = reader.try_clone().unwrap();
+            let reader_ref = shared_reader.clone();
+            let read_result = tokio::task::spawn_blocking(
                 move || {
-                    let mut buf = [0u8; 8192];
-                    match reader_clone.read(&mut buf) {
+                    let mut guard = reader_ref.lock().unwrap();
+
+                    let mut buf = [0u8; 1024];
+                    match guard.read(&mut buf) {
                         Ok(n) => Ok((buf, n)),
                         Err(e) => Err(e),
                     }
                 }
-            }).await;
+            ).await;
             
             match read_result {
                 Ok(Ok((buf, n))) if n > 0 => {
@@ -285,12 +293,10 @@ pub fn write_pty(pty_id: u32, data: String, state: State<TerminalManager>) -> Re
     let processes = state.processes.lock().unwrap();
     
     if let Some(pty) = processes.get(&pty_id) {
-        let pair = pty.pair.lock().unwrap();
-        let mut writer = pair.master.take_writer().map_err(|e| e.to_string())?;
         
-        // Write raw bytes - this includes backspace (\x7F or \x08) and all control chars
-        writer.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
-        writer.flush().map_err(|e| e.to_string())?;
+        let mut writer_guard = pty.writer.lock().map_err(|_| "Failed to lock writer".to_string())?;
+        writer_guard.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
+        writer_guard.flush().map_err(|e| e.to_string())?;
         
         Ok(())
     } else {
@@ -379,6 +385,8 @@ impl Clone for PtyProcess {
         Self {
             #[cfg(unix)]
             pair: self.pair.clone(),
+            #[cfg(unix)]
+            writer: self.writer.clone(),
             
             #[cfg(windows)]
             child: self.child.clone(),
