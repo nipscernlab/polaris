@@ -119,6 +119,27 @@ pub async fn generate_processor(
 /// Execute terminal command
 #[tauri::command]
 pub async fn execute_command(command: String) -> Result<String, String> {
-    terminal::execute_command(&command)
-        .map_err(|e| format!("Failed to execute command: {}", e))
+    // Detecta se é Windows ou Unix (Linux/Mac)
+    let output = if cfg!(target_os = "windows") {
+        std::process::Command::new("cmd")
+            .args(["/C", &command])
+            .output()
+    } else {
+        std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .output()
+    };
+
+    // Processa o resultado
+    match output {
+        Ok(o) => {
+            if o.status.success() {
+                Ok(String::from_utf8_lossy(&o.stdout).to_string())
+            } else {
+                Err(String::from_utf8_lossy(&o.stderr).to_string())
+            }
+        }
+        Err(e) => Err(format!("Failed to execute command: {}", e)),
+    }
 }
