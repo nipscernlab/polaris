@@ -37,10 +37,17 @@ const wavetraceState = {
     resizeObserver: null,
     mutationObserver: null,
     colorPalette: [
-        0x60a5fa, 0xa78bfa, 0x34d399, 0xfbbf24,
-        0xf472b6, 0x22d3ee, 0xfb923c, 0x86efac,
-        0xc084fc, 0x38bdf8, 0xa3e635, 0xfca5a5,
+        0x34d399, 0xfbbf24, 0xf97316, 0xa78bfa,
+        0xe879f9, 0x60a5fa,
     ],
+    gtkColors: {
+        base: 0x34d399,      // Verde
+        io: 0xfbbf24,        // Amarelo
+        vars: 0xf97316,      // Laranja
+        assembly: 0xa78bfa,  // Roxo
+        cmm: 0xe879f9,       // Violeta
+        default: 0x60a5fa    // Azul
+    },
     colors: {
         background: 0x0a0a0f,
         grid: 0x252538,
@@ -177,12 +184,43 @@ export async function openWavetraceViewer(filePath, fileName) {
     }
 }
 
-function assignSignalColors() {
+/*function assignSignalColors() {
     wavetraceState.signals.forEach((signal, index) => {
         const colorIndex = index % wavetraceState.colorPalette.length;
         wavetraceState.signalColors.set(signal.id, wavetraceState.colorPalette[colorIndex]);
         wavetraceState.signalRadix.set(signal.id, signal.width > 1 ? 'hex' : 'binary');
         wavetraceState.signalRenderMode.set(signal.id, signal.width === 1 ? 'digital' : 'analog');
+    });
+}*/
+
+function assignSignalColors() {
+    wavetraceState.signals.forEach((signal) => {          // faz uma "varredura" nos sinais
+        const name = signal.name;                         // nome completo que esta no arq vcd
+        const parts = name.split('_');
+        const baseName = parts.slice(0, -1).join('_');    // nessas 2 linhas, "fatia" o nome parecido como no python, e junta com '-'
+
+        let assignedColor = wavetraceState.gtkColors.default;    // se nenhum if for satisfeito cor default (azul)
+
+        if (name === "valr2") {
+            assignedColor = wavetraceState.gtkColors.assembly;
+        } 
+        else if (name === "linetabs") {
+            assignedColor = wavetraceState.gtkColors.cmm;
+        }
+        else if (["req_in_sim", "in_sim", "out_en_sim", "out_sig"].includes(baseName)) {
+            assignedColor = wavetraceState.gtkColors.io;
+        }
+        else if (parts[0] === "me1" || parts[0] === "me2" || parts[0] === "arr" || parts[0] === "comp") {
+            assignedColor = wavetraceState.gtkColors.vars;
+        }
+        else if (signal.path && !signal.path.includes('.')) { 
+            assignedColor = wavetraceState.gtkColors.base;
+        }
+
+        wavetraceState.signalColors.set(signal.id, assignedColor);
+
+        wavetraceState.signalRadix.set(signal.id, signal.width > 1 ? 'hex' : 'binary');  // escolhe a base numérica (AINDA NÃO MEXI)
+        wavetraceState.signalRenderMode.set(signal.id, signal.width === 1 ? 'digital' : 'analog');  // escolhe o estilo (analog ou digital) (AINDA NÃO MEXI)
     });
 }
 
