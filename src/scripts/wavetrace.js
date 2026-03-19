@@ -1,6 +1,3 @@
-// TENTANDO RECUPERAR O HISTORICO DE ALTERACOES
-
-
 import * as PIXI from 'pixi.js';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -17,6 +14,8 @@ const wavetraceState = {
     signalColors: new Map(),
     signalRadix: new Map(),
     signalRenderMode: new Map(),
+    signalDisplayName: new Map(),
+    signalType: new Map(),
     timeScale: 1,
     timeOffset: 0,
     cursorPosition: null,
@@ -38,15 +37,16 @@ const wavetraceState = {
     mutationObserver: null,
     colorPalette: [
         0x34d399, 0xfbbf24, 0xf97316, 0xa78bfa,
-        0xe879f9, 0x60a5fa,
+        0xe879f9, 0xaaaa00, 0x60a5fa, 
     ],
-    gtkColors: {
-        base: 0x34d399,      // Verde
-        io: 0xfbbf24,        // Amarelo
-        vars: 0xf97316,      // Laranja
-        assembly: 0xa78bfa,  // Roxo
-        cmm: 0xe879f9,       // Violeta
-        default: 0x60a5fa    // Azul
+    colorsSignal: {
+        base: 0x34ff99,
+        io: 0xfbbf24,        
+        vars: 0xf97316,      
+        assembly: 0xa78bfa,  
+        cmm: 0xe879f9,  
+        flags: 0xaaaa00,     
+        default: 0x60a5fa    
     },
     colors: {
         background: 0x0a0a0f,
@@ -175,6 +175,7 @@ export async function openWavetraceViewer(filePath, fileName) {
         }
 
         assignSignalColors();
+        assignSignalFormats();
         initWavetraceUI();
         
         console.log(`Loaded ${vcdData.signals.length} signals from VCD file`);
@@ -184,44 +185,170 @@ export async function openWavetraceViewer(filePath, fileName) {
     }
 }
 
-/*function assignSignalColors() {
-    wavetraceState.signals.forEach((signal, index) => {
-        const colorIndex = index % wavetraceState.colorPalette.length;
-        wavetraceState.signalColors.set(signal.id, wavetraceState.colorPalette[colorIndex]);
-        wavetraceState.signalRadix.set(signal.id, signal.width > 1 ? 'hex' : 'binary');
-        wavetraceState.signalRenderMode.set(signal.id, signal.width === 1 ? 'digital' : 'analog');
-    });
-}*/
-
 function assignSignalColors() {
-    wavetraceState.signals.forEach((signal) => {          // faz uma "varredura" nos sinais
-        const name = signal.name;                         // nome completo que esta no arq vcd
+    wavetraceState.signals.forEach((signal) => {
+        const name = signal.name;
         const parts = name.split('_');
-        const baseName = parts.slice(0, -1).join('_');    // nessas 2 linhas, "fatia" o nome parecido como no python, e junta com '-'
+        const baseName = parts.slice(0, -1).join('_');
 
-        let assignedColor = wavetraceState.gtkColors.default;    // se nenhum if for satisfeito cor default (azul)
+        let assignedColor = wavetraceState.colorsSignal.default;
 
         if (name === "valr2") {
-            assignedColor = wavetraceState.gtkColors.assembly;
+            assignedColor = wavetraceState.colorsSignal.assembly;
         } 
         else if (name === "linetabs") {
-            assignedColor = wavetraceState.gtkColors.cmm;
+            assignedColor = wavetraceState.colorsSignal.cmm;
         }
         else if (["req_in_sim", "in_sim", "out_en_sim", "out_sig"].includes(baseName)) {
-            assignedColor = wavetraceState.gtkColors.io;
+            assignedColor = wavetraceState.colorsSignal.io;
         }
         else if (parts[0] === "me1" || parts[0] === "me2" || parts[0] === "arr" || parts[0] === "comp") {
-            assignedColor = wavetraceState.gtkColors.vars;
+            assignedColor = wavetraceState.colorsSignal.vars;
         }
-        else if (signal.path && !signal.path.includes('.')) { 
-            assignedColor = wavetraceState.gtkColors.base;
+        else if (name === "clk" || name === "rst") { 
+            assignedColor = wavetraceState.colorsSignal.base;
+        }
+        else if (signal.path.includes("core")) { 
+            assignedColor = wavetraceState.colorsSignal.flags;
         }
 
         wavetraceState.signalColors.set(signal.id, assignedColor);
-
-        wavetraceState.signalRadix.set(signal.id, signal.width > 1 ? 'hex' : 'binary');  // escolhe a base numérica (AINDA NÃO MEXI)
-        wavetraceState.signalRenderMode.set(signal.id, signal.width === 1 ? 'digital' : 'analog');  // escolhe o estilo (analog ou digital) (AINDA NÃO MEXI)
     });
+}
+
+function assignSignalFormats() {
+    wavetraceState.signals.forEach((signal) => {
+        const name = signal.name;
+        const parts = name.split('_');
+        
+        let displayName = name; 
+        let radix = signal.width > 1 ? 'hex' : 'binary';
+        let renderMode = signal.width === 1 ? 'digital' : 'analog';
+        let type = "Default";
+        
+        // I/O signals
+        if (name.includes("req_in_sim")) {
+            displayName = "req_in " + parts[parts.length - 1];
+            radix = "binary";
+            type = "I/O";
+        } 
+        else if (name.includes("in_sim") && !name.includes("req_in")) {
+            displayName = "input " + parts[parts.length - 1];
+            radix = "decimal"; 
+            type = "I/O";
+        } 
+        else if (name.includes("out_en_sim")) {
+            displayName = "out_en " + parts[parts.length - 1];
+            radix = "binary";
+            type = "I/O";
+        } 
+        else if (name.includes("out_sig")) {
+            displayName = "output " + parts[parts.length - 1];
+            radix = "decimal";
+            type = "I/O";
+        }
+        
+        // Instructions signals
+        else if (name.includes("valr2")) {
+            displayName = "Assembly";
+            radix = "decimal";
+            type = "Instructions";
+        } 
+        else if (name.includes("linetabs")) {
+            displayName = "C+-";
+            radix = "decimal";
+            type = "Instructions";
+        }
+        
+        // Variables signals
+        else if (name.startsWith("me1")) {
+            const varName = parts.slice(4, -2).join('_');
+            displayName = `int ${varName} in ${parts[2]}`;
+            radix = "decimal";
+            type = "Variables";
+        } 
+        else if (name.startsWith("me2")) {
+            const varName = parts.slice(4, -2).join('_');
+            displayName = `float ${varName} in ${parts[2]}`;
+            radix = "hex"; 
+            type = "Variables";
+        } 
+        
+        // Stack pointers and ULA Flags signals
+        else if (name.includes("pointeri")) {
+            if (signal.path.includes("isp")) {
+                displayName = "Inst Stack Pointer";
+            } else {
+                displayName = "Data Stack Pointer";
+            }
+            renderMode = "analog";
+            type = "Flags";
+        }
+        else if (name.includes("delta_int")) {
+            displayName = "Rounding Error (int)";
+            radix = "decimal";
+            type = "Flags";
+        }
+        else if (signal.path.includes(".core.")) {
+            type = "Flags";
+        }
+
+        wavetraceState.signalDisplayName.set(signal.id, displayName);
+        wavetraceState.signalRadix.set(signal.id, radix);
+        wavetraceState.signalRenderMode.set(signal.id, renderMode);
+        wavetraceState.signalType.set(signal.id, type);
+    });
+}
+
+function getCustomHierarchyPath(signal) {
+    const type = wavetraceState.signalType.get(signal.id) || "Default";
+    const originalParts = signal.path.split('.');
+    
+    // O último elemento do path original é SEMPRE o nome do sinal
+    const signalName = originalParts[originalParts.length - 1];
+    
+    // [0] é o Testbench (Ex: ProcDTW_tb)
+    const tbName = originalParts[0] || "Root"; 
+    
+    // Para achar o processador de forma dinâmica, pegamos a posição [1].
+    // Só fazemos isso se o caminho for longo o suficiente (para não pegar o clk por engano)
+    let procFolder = "proc";
+    if (originalParts.length > 2) {
+        procFolder = originalParts[1];
+    }
+
+    // REGRA 1: Sinais Globais (clk e rst)
+    // Retornamos ex: "ProcDTW_tb.clk". O programa tira o "clk" e cria a pasta ProcDTW_tb
+    if (signal.name.includes('clk') || signal.name.includes('rst')) {
+        return `${tbName}.${signalName}`; 
+    }
+
+    // REGRA 2: Flags e subpastas (sp, isp)
+    if (type === "Flags") {
+        // A sua ideia: apenas pega o caminho original e troca ".core." por ".Flags."!
+        // Ex: "ProcDTW_tb.proc.core.sp.pointeri" vira "ProcDTW_tb.proc.Flags.sp.pointeri"
+        
+        if (signal.path.includes('.core.')) {
+            if (signal.path.includes('sp')) {
+                return signal.path.replace('.p_ProcDTW', '').replace('.core.', '.Flags.').replace('.sp.', '.STACK.');
+            } else if (signal.path.includes('ula')) {
+                return signal.path.replace('.p_ProcDTW', '').replace('.core.', '.Flags.').replace('.ula.', '.ULA.');
+            }
+        } 
+        else {
+            // Plano B de segurança: se existir algum sinal de Flag que NÃO estava 
+            // dentro da pasta core, nós forçamos ele a entrar na pasta Flags.
+            return `${tbName}.${procFolder}.Flags.${signalName}`;
+        }
+    }
+
+    // REGRA 3: Pastas Principais (I/O, Instructions, Variables)
+    if (type === "I/O" || type === "Instructions" || type === "Variables") {
+        return `${tbName}.${procFolder}.${type}.${signalName}`;
+    }
+
+    // REGRA 4: O que não der match em NADA vai para "Outros"
+    return `${tbName}.${procFolder}.Outros.${signalName}`;
 }
 
 function initWavetraceUI() {
@@ -557,7 +684,8 @@ function buildSignalHierarchy(signals) {
     const root = { name: 'root', children: new Map(), signals: [] };
     
     signals.forEach(signal => {
-        const parts = signal.path.split('.');
+        const customPath = getCustomHierarchyPath(signal);
+        const parts = customPath.split('.');
         let current = root;
         
         for (let i = 0; i < parts.length - 1; i++) {
@@ -583,6 +711,7 @@ function renderHierarchyNode(node, container, level) {
         const scopeDiv = document.createElement('div');
         scopeDiv.className = 'wt-scope';
         
+        /*
         scopeDiv.innerHTML = `
             <div class="wt-scope-header" style="padding-left: ${level * 16 + 12}px">
                 <span class="material-symbols-outlined wt-expand-icon">chevron_right</span>
@@ -590,7 +719,67 @@ function renderHierarchyNode(node, container, level) {
                 <span class="wt-scope-name">${name}</span>
             </div>
         `;
+        */
         
+        scopeDiv.innerHTML = `
+            <div class="wt-scope-header" style="padding-left: ${level * 16 + 12}px">
+                <div class="wt-scope-info">
+                    <span class="material-symbols-outlined wt-expand-icon">chevron_right</span>
+                    <span class="material-symbols-outlined">folder</span>
+                    <span class="wt-scope-name">${name}</span>
+                </div>
+                <div class="wt-master-checkbox-custom">
+                    <span class="material-symbols-outlined">check</span>
+                </div>
+            </div>
+        `;
+
+        const masterCb = scopeDiv.querySelector('.wt-master-checkbox-custom');
+        masterCb.addEventListener('click', (e) => {
+            e.stopPropagation(); // Impede a pasta de abrir/fechar quando clica na caixa
+            
+            // Mudança aqui: Toga a classe e define isChecked baseado na presença da classe
+            const isChecked = masterCb.classList.toggle('checked');
+            
+            // Puxa todos os sinais desta pasta e das subpastas
+            function getAllSignalsInFolder(folderNode) {
+                let sigs = [...folderNode.signals];
+                folderNode.children.forEach(subFolder => {
+                    sigs.push(...getAllSignalsInFolder(subFolder));
+                });
+                return sigs;
+            }
+            
+            const folderSignals = getAllSignalsInFolder(child);
+            
+            // Marca ou desmarca todo mundo
+            folderSignals.forEach(sig => {
+                const isDisplayed = wavetraceState.displayedSignals.some(s => s.id === sig.id);
+                
+                // Atualiza a memória (o array de ondas mostradas)
+                if (isChecked && !isDisplayed) {
+                    wavetraceState.displayedSignals.push(sig);
+                } else if (!isChecked && isDisplayed) {
+                    wavetraceState.displayedSignals = wavetraceState.displayedSignals.filter(s => s.id !== sig.id);
+                }
+                
+                // Atualiza o visual (as caixinhas menores de cada sinal)
+                const sigCheckboxDiv = document.querySelector(`.wt-signal[data-signal-id="${sig.id}"] .wt-signal-checkbox`);
+                if (sigCheckboxDiv) {
+                    if (isChecked) {
+                        sigCheckboxDiv.classList.add('checked');
+                    } else {
+                        sigCheckboxDiv.classList.remove('checked');
+                    }
+                }
+            });
+            
+            // Manda o gráfico desenhar as novas ondas
+            if (typeof renderWaveforms === 'function') {
+                renderWaveforms();
+            }
+        });
+
         const childContainer = document.createElement('div');
         childContainer.className = 'wt-scope-children';
         childContainer.style.display = 'none';
@@ -625,6 +814,8 @@ function renderHierarchyNode(node, container, level) {
         
         if (isSelected) signalDiv.classList.add('selected');
         
+        const nameDisplay = wavetraceState.signalDisplayName.get(signal.id) || signal.name;
+
         signalDiv.innerHTML = `
             <div class="wt-signal-drag-handle">
                 <span class="material-symbols-outlined">drag_indicator</span>
@@ -633,7 +824,7 @@ function renderHierarchyNode(node, container, level) {
                 <span class="material-symbols-outlined">check</span>
             </div>
             <div class="wt-signal-color" style="background: #${signalColor.toString(16).padStart(6, '0')}"></div>
-            <span class="wt-signal-name">${signal.name}</span>
+            <span class="wt-signal-name">${nameDisplay}</span>
             <span class="wt-signal-width">${signal.width > 1 ? `[${signal.width - 1}:0]` : ''}</span>
         `;
         
@@ -1098,10 +1289,12 @@ function updateCursorInfo(mouseX, mouseY, time = null) {
         const color = wavetraceState.signalColors.get(signal.id);
         const displayValue = signal.width > 1 ? formatBusValue(value, signal) : value;
         
+        const nameDisplay = wavetraceState.signalDisplayName.get(signal.id) || signal.name;
+
         html += `
             <div class="wt-cursor-signal">
                 <div class="wt-cursor-dot" style="background: #${color.toString(16).padStart(6, '0')}"></div>
-                <span class="wt-cursor-name">${signal.name}</span>
+                <span class="wt-cursor-name">${nameDisplay}</span>
                 <span class="wt-cursor-value">${displayValue}</span>
             </div>
         `;
@@ -1319,7 +1512,9 @@ function drawSignal(container, signal, yOffset, width) {
     const signalHeight = wavetraceState.signalHeight;
     const padding = 18;
     
-    const nameText = new PIXI.Text(signal.name, {
+    const displayName = wavetraceState.signalDisplayName.get(signal.id) || signal.name;
+
+    const nameText = new PIXI.Text(displayName, {
         fontFamily: 'JetBrains Mono',
         fontSize: 11,
         fill: wavetraceState.colors.text,
