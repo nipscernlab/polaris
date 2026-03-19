@@ -304,29 +304,21 @@ function getCustomHierarchyPath(signal) {
     const type = wavetraceState.signalType.get(signal.id) || "Default";
     const originalParts = signal.path.split('.');
     
-    // O último elemento do path original é SEMPRE o nome do sinal
     const signalName = originalParts[originalParts.length - 1];
-    
-    // [0] é o Testbench (Ex: ProcDTW_tb)
     const tbName = originalParts[0] || "Root"; 
     
-    // Para achar o processador de forma dinâmica, pegamos a posição [1].
-    // Só fazemos isso se o caminho for longo o suficiente (para não pegar o clk por engano)
     let procFolder = "proc";
     if (originalParts.length > 2) {
         procFolder = originalParts[1];
     }
 
-    // REGRA 1: Sinais Globais (clk e rst)
-    // Retornamos ex: "ProcDTW_tb.clk". O programa tira o "clk" e cria a pasta ProcDTW_tb
+    // Global Signals (clk and rst)
     if (signal.name.includes('clk') || signal.name.includes('rst')) {
         return `${tbName}.${signalName}`; 
     }
 
-    // REGRA 2: Flags e subpastas (sp, isp)
+    // Flags folders (sp, isp)
     if (type === "Flags") {
-        // A sua ideia: apenas pega o caminho original e troca ".core." por ".Flags."!
-        // Ex: "ProcDTW_tb.proc.core.sp.pointeri" vira "ProcDTW_tb.proc.Flags.sp.pointeri"
         
         if (signal.path.includes('.core.')) {
             if (signal.path.includes('sp')) {
@@ -336,19 +328,17 @@ function getCustomHierarchyPath(signal) {
             }
         } 
         else {
-            // Plano B de segurança: se existir algum sinal de Flag que NÃO estava 
-            // dentro da pasta core, nós forçamos ele a entrar na pasta Flags.
             return `${tbName}.${procFolder}.Flags.${signalName}`;
         }
     }
 
-    // REGRA 3: Pastas Principais (I/O, Instructions, Variables)
+    // Main Folders (I/O, Instructions, Variables)
     if (type === "I/O" || type === "Instructions" || type === "Variables") {
         return `${tbName}.${procFolder}.${type}.${signalName}`;
     }
 
-    // REGRA 4: O que não der match em NADA vai para "Outros"
-    return `${tbName}.${procFolder}.Outros.${signalName}`;
+    // Any other
+    return `${tbName}.${procFolder}.Others.${signalName}`;
 }
 
 function initWavetraceUI() {
@@ -736,12 +726,10 @@ function renderHierarchyNode(node, container, level) {
 
         const masterCb = scopeDiv.querySelector('.wt-master-checkbox-custom');
         masterCb.addEventListener('click', (e) => {
-            e.stopPropagation(); // Impede a pasta de abrir/fechar quando clica na caixa
+            e.stopPropagation();
             
-            // Mudança aqui: Toga a classe e define isChecked baseado na presença da classe
             const isChecked = masterCb.classList.toggle('checked');
             
-            // Puxa todos os sinais desta pasta e das subpastas
             function getAllSignalsInFolder(folderNode) {
                 let sigs = [...folderNode.signals];
                 folderNode.children.forEach(subFolder => {
@@ -752,18 +740,15 @@ function renderHierarchyNode(node, container, level) {
             
             const folderSignals = getAllSignalsInFolder(child);
             
-            // Marca ou desmarca todo mundo
             folderSignals.forEach(sig => {
                 const isDisplayed = wavetraceState.displayedSignals.some(s => s.id === sig.id);
                 
-                // Atualiza a memória (o array de ondas mostradas)
                 if (isChecked && !isDisplayed) {
                     wavetraceState.displayedSignals.push(sig);
                 } else if (!isChecked && isDisplayed) {
                     wavetraceState.displayedSignals = wavetraceState.displayedSignals.filter(s => s.id !== sig.id);
                 }
                 
-                // Atualiza o visual (as caixinhas menores de cada sinal)
                 const sigCheckboxDiv = document.querySelector(`.wt-signal[data-signal-id="${sig.id}"] .wt-signal-checkbox`);
                 if (sigCheckboxDiv) {
                     if (isChecked) {
@@ -774,7 +759,6 @@ function renderHierarchyNode(node, container, level) {
                 }
             });
             
-            // Manda o gráfico desenhar as novas ondas
             if (typeof renderWaveforms === 'function') {
                 renderWaveforms();
             }
@@ -910,57 +894,109 @@ function renderHierarchyNode(node, container, level) {
 }
 
 function showColorPicker(event, signal, signalDiv) {
-    const existingPicker = document.querySelector('.wt-color-picker-popup');
-    if (existingPicker) existingPicker.remove();
+    let window = document.getElementById('colorSelectorWindow');
+    if (window) {
+        window.remove();
+    }
+    window = document.createElement('div');
+    window.id = 'colorSelectorWindow';
+    window.className = 'wt-color-selector-window';
+    window.style.display = 'flex';
+    window.style.flexDirection = 'column';
+    window.style.gap = '10px';
+    document.body.appendChild(window);
 
-    const popup = document.createElement('div');
-    popup.className = 'wt-color-picker-popup';
-    
-    const currentColor = wavetraceState.signalColors.get(signal.id);
-    
-    popup.innerHTML = `
-        <input type="color" value="#${currentColor.toString(16).padStart(6, '0')}" class="wt-color-input">
-        <div class="wt-color-presets">
-            ${wavetraceState.colorPalette.map(color => 
-                `<div class="wt-color-preset" style="background: #${color.toString(16).padStart(6, '0')}" data-color="${color}"></div>`
-            ).join('')}
-        </div>
-    `;
-    
+    // Preset Colors for the colorPalette
+    const presetGrid = document.createElement('div');
+    presetGrid.className = 'wt-color-preset-grid';
+    presetGrid.style.display = 'grid';
+    presetGrid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+    presetGrid.style.gap = '8px';
+    window.appendChild(presetGrid);
+
+    wavetraceState.colorPalette.forEach(colorHexNumber => {
+        const hexStr = '#' + colorHexNumber.toString(16).padStart(6, '0');
+        const option = document.createElement('div');
+        option.className = 'wt-color-option';
+        option.style.background = hexStr;
+        
+        option.addEventListener('click', () => {
+            wavetraceState.signalColors.set(signal.id, colorHexNumber);
+            
+            const colorDot = signalDiv.querySelector('.wt-signal-color');
+            if (colorDot) colorDot.style.background = hexStr;
+            
+            if (typeof renderWaveforms === 'function') renderWaveforms();
+            
+            window.remove(); // Fecha a janela
+        });
+        presetGrid.appendChild(option);
+    });
+
+    // Color Slider
+    const hueSlider = document.createElement('input');
+    hueSlider.type = 'range';
+    hueSlider.className = 'wt-color-hue-slider';
+    hueSlider.min = '0';
+    hueSlider.max = '360';
+    hueSlider.step = '1';
+    hueSlider.value = '0';
+    hueSlider.style.width = '100%';
+    window.appendChild(hueSlider);
+
+    hueSlider.addEventListener('input', (e) => {
+        const hue = Number(e.target.value);
+        
+        const hexNumber = hslToHexNumber(hue, 100, 50);
+        
+        const hexStr = '#' + hexNumber.toString(16).padStart(6, '0');
+        
+        wavetraceState.signalColors.set(signal.id, hexNumber);
+        
+        const colorDot = signalDiv.querySelector('.wt-signal-color');
+        if (colorDot) colorDot.style.background = hexStr;
+        
+        if (typeof renderWaveforms === 'function') renderWaveforms();
+    });
+
     const rect = signalDiv.getBoundingClientRect();
-    popup.style.top = `${rect.top}px`;
-    popup.style.left = `${rect.right + 10}px`;
-    
-    document.body.appendChild(popup);
-    
-    const colorInput = popup.querySelector('.wt-color-input');
-    colorInput.addEventListener('change', (e) => {
-        const newColor = parseInt(e.target.value.substring(1), 16);
-        wavetraceState.signalColors.set(signal.id, newColor);
-        const colorDiv = signalDiv.querySelector('.wt-signal-color');
-        colorDiv.style.background = e.target.value;
-        renderWaveforms();
-    });
-    
-    popup.querySelectorAll('.wt-color-preset').forEach(preset => {
-        preset.addEventListener('click', () => {
-            const color = parseInt(preset.dataset.color);
-            wavetraceState.signalColors.set(signal.id, color);
-            const colorDiv = signalDiv.querySelector('.wt-signal-color');
-            colorDiv.style.background = `#${color.toString(16).padStart(6, '0')}`;
-            renderWaveforms();
-            popup.remove();
-        });
-    });
-    
+    window.style.left = `${rect.right + 10}px`;
+    window.style.top = `${rect.top - 20}px`;
+
+    function handleClickOutside(e) {
+        if (!window.contains(e.target) && !signalDiv.contains(e.target)) {
+            window.remove();
+            document.removeEventListener('click', handleClickOutside);
+        }
+    }
     setTimeout(() => {
-        document.addEventListener('click', function closePopup(e) {
-            if (!popup.contains(e.target) && !signalDiv.contains(e.target)) {
-                popup.remove();
-                document.removeEventListener('click', closePopup);
-            }
-        });
+        document.addEventListener('click', handleClickOutside);
     }, 0);
+}
+
+function hslToHexNumber(h, s, l) {
+    h = Number(h);
+    if (h >= 360) h = 359;
+    s /= 100;
+    l /= 100;
+
+    let c = (1 - Math.abs(2 * l - 1)) * s,
+        x = c * (1 - Math.abs((h / 60) % 2 - 1)),
+        m = l - c / 2,
+        r = 0, g = 0, b = 0;
+
+    if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+    else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+    else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+    else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+    else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+    else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+
+    r = Math.round((r + m) * 255);
+    g = Math.round((g + m) * 255);
+    b = Math.round((b + m) * 255);
+
+    return (r * 65536) + (g * 256) + b;
 }
 
 function toggleSignal(signal) {
