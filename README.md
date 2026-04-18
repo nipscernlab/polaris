@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/nipscernlab/nipscernweb/blob/main/assets/icon-projects/polaris.svg"
+  <img src="https://github.com/nipscernlab/nipscernweb/blob/main/assets/icons/polaris.svg"
        alt="POLARIS Icon"
        width="160">
 </p>
