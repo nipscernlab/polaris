@@ -16,6 +16,8 @@ const wavetraceState = {
     signalRenderMode: new Map(),
     signalDisplayName: new Map(),
     signalType: new Map(),
+    opcodeMap: new Map(),  
+    cmmMap: new Map(),     
     timeScale: 1,
     timeOffset: 0,
     cursorPosition: null,
@@ -72,15 +74,17 @@ class VCDParser {
         this.timeValues = [];
     }
 
-    parse(vcdContent) {
+        async parse(vcdContent, onProgress) {
         const lines = vcdContent.split('\n');
+        const totalLines = lines.length;
         let inHeader = true;
         let currentTime = 0;
         let idToSignal = new Map();
+        
+        const chunkSize = Math.ceil(totalLines * 0.01);
 
-        for (let i = 0; i < lines.length; i++) {
+        for (let i = 0; i < totalLines; i++) {
             const line = lines[i].trim();
-            
             if (!line || line.startsWith('$comment')) continue;
 
             if (inHeader) {
@@ -97,7 +101,6 @@ class VCDParser {
                     const width = parseInt(parts[2]);
                     const id = parts[3];
                     const name = parts[4];
-                    
                     const fullPath = [...this.scope, name].join('.');
                     
                     const signal = {
@@ -108,7 +111,6 @@ class VCDParser {
                         width,
                         values: []
                     };
-                    
                     this.signals.set(id, signal);
                     idToSignal.set(id, signal);
                 } else if (line.startsWith('$enddefinitions')) {
@@ -124,7 +126,6 @@ class VCDParser {
                 }
             } else if (line.length > 0) {
                 let value, id;
-                
                 if (line[0] === 'b') {
                     const parts = line.split(/\s+/);
                     value = parts[0].substring(1);
@@ -139,10 +140,16 @@ class VCDParser {
                     signal.values.push({ time: currentTime, value });
                 }
             }
+
+            if (i % chunkSize === 0 && onProgress) {
+                onProgress(i, totalLines);
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
         }
 
+        if (onProgress) onProgress(totalLines, totalLines);
+
         this.timeValues.sort((a, b) => a - b);
-        
         return {
             timescale: this.timescale,
             signals: Array.from(this.signals.values()),
@@ -154,20 +161,93 @@ class VCDParser {
     }
 }
 
-// ===== WAVETRACE INITIALIZATION =====
+// ===== FUNÇÃO AUXILIAR PARA PROCESSAR TRADUÇÕES =====
+function parseTranslationFiles(opcodeText, cmmText) {
+    wavetraceState.opcodeMap.clear();
+    wavetraceState.cmmMap.clear();
+    
+    const fillMap = (text, map) => {
+        if (!text) return;
+        const lines = text.split('\n');
+        for (let line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            const match = trimmed.match(/^(-?\d+)\s+(.*)$/);
+            if (match) {
+                const num = parseInt(match[1], 10);
+                const translation = match[2].trim();
+                map.set(num, translation);
+            }
+        }
+    };
+
+    fillMap(opcodeText, wavetraceState.opcodeMap);
+    fillMap(cmmText, wavetraceState.cmmMap);
+    console.log(`Dicionários carregados! Opcode: ${wavetraceState.opcodeMap.size} itens, CMM: ${wavetraceState.cmmMap.size} itens.`);
+}
+
 export async function openWavetraceViewer(filePath, fileName) {
+    closeWavetraceViewer();
     console.log('Opening Wavetrace viewer for:', fileName);
+    
+    let loader = document.getElementById('wtFileLoader');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'wtFileLoader';
+        loader.innerHTML = `
+            <h3 style="margin-bottom: 15px; font-weight: 500;">Processando arquivo VCD...</h3>
+            <div style="width: 320px; height: 8px; background: #252538; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+                <div id="wtProgressBar" style="width: 0%; height: 100%; background: #a78bfa; transition: width 0.05s ease-out;"></div>
+            </div>
+            <div id="wtProgressText" style="font-size: 13px; color: #a8a8c0;">Lendo dados...</div>
+        `;
+        document.body.appendChild(loader);
+    } else {
+        loader.style.display = 'flex';
+    }
+
+    const progressBar = document.getElementById('wtProgressBar');
+    const progressText = document.getElementById('wtProgressText');
 
     try {
+        progressText.textContent = "Lendo arquivo do disco...";
+        if (progressBar) progressBar.style.width = "0%";
+
         const content = await invoke('read_file', { path: filePath });
+        
         const parser = new VCDParser();
-        const vcdData = parser.parse(content);
+        
+        const vcdData = await parser.parse(content, (current, total) => {
+            const percentage = ((current / total) * 100).toFixed(0);
+            if (progressBar) progressBar.style.width = `${percentage}%`;
+            if (progressText) {
+                progressText.textContent = `${current.toLocaleString()} / ${total.toLocaleString()} linhas (${percentage}%)`;
+            }
+        });
         
         wavetraceState.filePath = filePath;
         wavetraceState.fileName = fileName;
         wavetraceState.vcdData = vcdData;
         wavetraceState.signals = vcdData.signals;
         wavetraceState.active = true;
+        try {
+            const lastSlash = filePath.lastIndexOf('/');
+            const lastBackslash = filePath.lastIndexOf('\\');
+            const slashIdx = Math.max(lastSlash, lastBackslash);
+            const dirPath = slashIdx !== -1 ? filePath.substring(0, slashIdx + 1) : '';
+
+            const opcodePath = dirPath + 'trad_opcode.txt';
+            const cmmPath = dirPath + 'trad_cmm.txt';
+
+            progressText.textContent = "Carregando arquivos de tradução...";
+
+            const opcodeContent = await invoke('read_file', { path: opcodePath });
+            const cmmContent = await invoke('read_file', { path: cmmPath });
+
+            parseTranslationFiles(opcodeContent, cmmContent);
+        } catch (errTxt) {
+            console.warn("Aviso: Arquivos trad_opcode.txt ou trad_cmm.txt não encontrados na mesma pasta do VCD.", errTxt);
+        }
 
         const container = document.getElementById('wavetraceContainer');
         if (container) {
@@ -182,6 +262,8 @@ export async function openWavetraceViewer(filePath, fileName) {
     } catch (error) {
         console.error('Error opening VCD file:', error);
         alert(`Failed to open VCD file: ${error}`);
+    } finally {
+        if (loader) loader.style.display = 'none';
     }
 }
 
@@ -226,7 +308,6 @@ function assignSignalFormats() {
         let renderMode = signal.width === 1 ? 'digital' : 'analog';
         let type = "Default";
         
-        // I/O signals
         if (name.includes("req_in_sim")) {
             displayName = "req_in " + parts[parts.length - 1];
             radix = "binary";
@@ -248,7 +329,6 @@ function assignSignalFormats() {
             type = "I/O";
         }
         
-        // Instructions signals
         else if (name.includes("valr2")) {
             displayName = "Assembly";
             radix = "decimal";
@@ -260,7 +340,6 @@ function assignSignalFormats() {
             type = "Instructions";
         }
         
-        // Variables signals
         else if (name.startsWith("me1")) {
             const varName = parts.slice(4, -2).join('_');
             displayName = `int ${varName} in ${parts[2]}`;
@@ -274,7 +353,6 @@ function assignSignalFormats() {
             type = "Variables";
         } 
         
-        // Stack pointers and ULA Flags signals
         else if (name.includes("pointeri")) {
             if (signal.path.includes("isp")) {
                 displayName = "Inst Stack Pointer";
@@ -303,21 +381,29 @@ function assignSignalFormats() {
 function getCustomHierarchyPath(signal) {
     const type = wavetraceState.signalType.get(signal.id) || "Default";
     const originalParts = signal.path.split('.');
-    
     const signalName = originalParts[originalParts.length - 1];
     const tbName = originalParts[0] || "Root"; 
     
     let procFolder = "proc";
-    if (originalParts.length > 2) {
+
+    let procInstance = null;
+    for (let i = 1; i < originalParts.length - 1; i++) {
+        if (originalParts[i].toLowerCase().includes('proc')) {
+            procInstance = originalParts[i];
+            break;
+        }
+    }
+
+    if (procInstance) {
+        procFolder = `proc.${procInstance}`;
+    } else if (originalParts.length > 2) {
         procFolder = originalParts[1];
     }
 
-    // Global Signals (clk and rst)
     if (signal.name.includes('clk') || signal.name.includes('rst')) {
         return `${tbName}.${signalName}`; 
     }
 
-    // Flags folders (sp, isp)
     if (type === "Flags") {
         
         if (signal.path.includes('.core.')) {
@@ -332,12 +418,10 @@ function getCustomHierarchyPath(signal) {
         }
     }
 
-    // Main Folders (I/O, Instructions, Variables)
     if (type === "I/O" || type === "Instructions" || type === "Variables") {
         return `${tbName}.${procFolder}.${type}.${signalName}`;
     }
 
-    // Any other
     return `${tbName}.${procFolder}.Others.${signalName}`;
 }
 
@@ -392,6 +476,10 @@ function initWavetraceUI() {
                 <div class="wt-canvas-wrapper" id="canvasWrapper">
                     <div class="wt-canvas" id="waveformCanvas"></div>
                     <div class="wt-cursor-info" id="cursorInfo" style="display: none;"></div>
+                    
+                    <div class="wt-scroll-container">
+                        <input type="range" id="wtHorizontalScroll" min="0" max="1000" value="0">
+                    </div>
                 </div>
             </div>
         </div>
@@ -403,6 +491,28 @@ function initWavetraceUI() {
     setupKeyboardNavigation();
     setupSidebarResize();
     observeLayoutChanges();
+}
+
+// ===== ATUALIZA O SLIDER BASEADO NO ZOOM E PAN ATUAIS =====
+function updateHorizontalSlider() {
+    const slider = document.getElementById('wtHorizontalScroll');
+    if (!slider || !wavetraceState.vcdData) return;
+
+    const { start, end } = wavetraceState.vcdData.timeRange;
+    const totalTime = end - start;
+    const canvasWidth = wavetraceState.app.view.width;
+    const maxTimeOffset = end - (canvasWidth / wavetraceState.timeScale);
+
+    if (maxTimeOffset <= start) {
+        slider.disabled = true;
+        slider.value = 0;
+        return;
+    }
+
+    slider.disabled = false;
+    
+    const percentage = ((wavetraceState.timeOffset - start) / (maxTimeOffset - start)) * 1000;
+    slider.value = Math.max(0, Math.min(1000, percentage));
 }
 
 function observeLayoutChanges() {
@@ -548,6 +658,24 @@ function setupWavetraceControls() {
         wavetraceState.canvasScrollY = Math.max(0, Math.min(maxScroll, wavetraceState.canvasScrollY + e.deltaY));
         renderWaveforms();
     }, { passive: false });
+
+    const slider = document.getElementById('wtHorizontalScroll');
+    if (slider) {
+        slider.addEventListener('input', (e) => {
+            if (!wavetraceState.vcdData) return;
+
+            const { start, end } = wavetraceState.vcdData.timeRange;
+            const canvasWidth = wavetraceState.app.view.width;
+            const maxTimeOffset = end - (canvasWidth / wavetraceState.timeScale);
+
+            if (maxTimeOffset > start) {
+                const percentage = parseInt(e.target.value, 10) / 1000;
+                wavetraceState.timeOffset = start + (percentage * (maxTimeOffset - start));
+                
+                renderWaveforms(); 
+            }
+        });
+    }
 }
 
 function getMaxScrollY() {
@@ -700,16 +828,6 @@ function renderHierarchyNode(node, container, level) {
     node.children.forEach((child, name) => {
         const scopeDiv = document.createElement('div');
         scopeDiv.className = 'wt-scope';
-        
-        /*
-        scopeDiv.innerHTML = `
-            <div class="wt-scope-header" style="padding-left: ${level * 16 + 12}px">
-                <span class="material-symbols-outlined wt-expand-icon">chevron_right</span>
-                <span class="material-symbols-outlined">folder</span>
-                <span class="wt-scope-name">${name}</span>
-            </div>
-        `;
-        */
         
         scopeDiv.innerHTML = `
             <div class="wt-scope-header" style="padding-left: ${level * 16 + 12}px">
@@ -906,7 +1024,6 @@ function showColorPicker(event, signal, signalDiv) {
     window.style.gap = '10px';
     document.body.appendChild(window);
 
-    // Preset Colors for the colorPalette
     const presetGrid = document.createElement('div');
     presetGrid.className = 'wt-color-preset-grid';
     presetGrid.style.display = 'grid';
@@ -928,12 +1045,11 @@ function showColorPicker(event, signal, signalDiv) {
             
             if (typeof renderWaveforms === 'function') renderWaveforms();
             
-            window.remove(); // Fecha a janela
+            window.remove();
         });
         presetGrid.appendChild(option);
     });
 
-    // Color Slider
     const hueSlider = document.createElement('input');
     hueSlider.type = 'range';
     hueSlider.className = 'wt-color-hue-slider';
@@ -1436,6 +1552,8 @@ function renderWaveforms() {
     if (wavetraceState.cursorPosition !== null) {
         drawCursor(container, wavetraceState.cursorPosition, canvasHeight);
     }
+
+    updateHorizontalSlider();
 }
 
 function drawCursor(container, time, height) {
@@ -1600,11 +1718,59 @@ function drawSignal(container, signal, yOffset, width) {
     container.addChild(graphics);
 }
 
+// ===== NOVA FUNÇÃO: DESENHA O BARRAMENTO DE TEXTO COM ALTURA FIXA E QUEDA EM 0 =====
+function drawTextBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, color, signal) {
+    graphics.lineStyle(2, color, 0.95);
+
+    const slant = 4; 
+
+    const points = [
+        x1 + slant, y,
+        x2 - slant, y,
+        x2, y + height,
+        x1, y + height
+    ];
+
+    gradientContainer.beginFill(color, 0.16);
+    gradientContainer.drawPolygon(points);
+    gradientContainer.endFill();
+
+    graphics.moveTo(x1 + slant, y);
+    graphics.lineTo(x2 - slant, y);
+    graphics.lineTo(x2, y + height);
+    graphics.lineTo(x1, y + height);
+    graphics.lineTo(x1 + slant, y);
+
+    if (x2 - x1 > 25) {
+        const displayValue = formatBusValue(value, signal);
+        
+        const valueText = new PIXI.Text(displayValue, {
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 10.5,
+            fill: wavetraceState.colors?.text || 0xffffff,
+            fontWeight: '700'
+        });
+
+        valueText.x = (x1 + x2) / 2 - valueText.width / 2;
+        valueText.y = y + height / 2 - valueText.height / 2;
+
+        if (valueText.width < (x2 - x1 - 8)) {
+            graphics.addChild(valueText);
+        }
+    }
+}
+
 function drawWaveformSegment(graphics, gradientContainer, x1, x2, y, height, value, width, color, signal, renderMode, nextValue) {
     if (x2 <= -100 || x1 >= wavetraceState.app.view.width + 100) return;
     
     x1 = Math.max(-50, x1);
     x2 = Math.min(wavetraceState.app.view.width + 50, x2);
+
+    const signalName = (signal.name || '').toLowerCase();
+    if (signalName.includes('valr2') || signalName.includes('linetabs')) {
+        drawTextBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, color, signal);
+        return;
+    }
     
     if (renderMode === 'analog' && width > 1) {
         drawAnalogWaveform(graphics, gradientContainer, x1, x2, y, height, value, color, signal, nextValue);
@@ -1751,6 +1917,24 @@ function formatBusValue(value, signal) {
     
     if (value.includes('x') || value.includes('X')) return 'X';
     if (value.includes('z') || value.includes('Z')) return 'Z';
+
+    const signalName = (signal.name || '').toLowerCase();
+    
+    if (signalName.includes('valr2') || signalName.includes('linetabs')) {
+        let decimalVal = parseInt(value, 2);
+
+        if (value.length === 32 && value[0] === '1') {
+            decimalVal = decimalVal - 4294967296;
+        }
+
+        if (signalName.includes('valr2') && wavetraceState.opcodeMap.has(decimalVal)) {
+            return wavetraceState.opcodeMap.get(decimalVal);
+        }
+
+        if (signalName.includes('linetabs') && wavetraceState.cmmMap.has(decimalVal)) {
+            return wavetraceState.cmmMap.get(decimalVal);
+        }
+    }
     
     const decimal = parseInt(value, 2);
     if (isNaN(decimal)) return value;
