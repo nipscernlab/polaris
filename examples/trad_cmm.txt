@@ -1,0 +1,131 @@
+-1 INTERNO
+-2 void main();
+-3 FIM
+-4 User Macro
+1 #PRNAME ProcDTW
+2 #NUBITS 32
+3 #NDSTAC 5
+4 #SDEPTH 5
+5 #NUIOIN 3
+6 #NUIOOU 3
+7 #NBMANT 23
+8 #NBEXPO 8
+9 
+10 int len_ref, len_data;
+11 int dtw[75][75];
+12 int k, j, menor, val_final,cont;
+13 int data_ref[75], data[75];
+14 
+15     
+16 void main() 
+17 {
+18     //if(in(0) == 0) //No reset geral:
+19     //{
+20         len_ref = 75;
+21         cont    = 0;
+22         while(cont < 75) // Preenchimento do vetor 1 com 0 se len_ref for 0 (para primeiro caso)
+23         {
+24             data_ref[cont] = 0;
+25             cont++;
+26         }
+27         out(2, 10); 
+28     //}
+29     //else //processamento normal
+30     //{
+31         out(2,-122);
+32         return;
+33 
+34 #INTERPOINT
+35 out(2,-123);        
+36         k = 0;
+37         
+38         len_data = in(2);        // Comprimento do vetor 2
+39             
+40         cont = 0;
+41         
+42         while(cont < 75) // Preenchimento do vetor 2
+43         {
+44             if (len_data > cont)
+45             {
+46                 data[cont]= in(1);
+47             }
+48             else
+49             {
+50                 data[cont] = 0;
+51             }
+52             cont++;
+53         }
+54         out(2,-124);
+55         out(2,k);
+56         out(2,len_data);
+57         
+58         while (k < len_data) // linhas da matriz dtw
+59         {
+60             j = 0;
+61             out(2,-125);
+62             while (j < len_ref)
+63             {
+64                 if(k == 0 && j == 0)        // Primeira posiçao k=0, j=0 
+65                 {
+66                     dtw[k][j] = abs(data[k] - data_ref[j]);
+67                     out(2, dtw[k][j]);
+68                 }
+69                 else
+70                 {
+71                     if(k == 0 && j > 0)         // Primeira linha
+72                     {
+73                         dtw[k][j] = abs(data[k] - data_ref[j]) + dtw[k][j-1];
+74                         out(2, dtw[k][j]);
+75                     }
+76                 }
+77                 
+78                 if (k > 0 && j == 0)             // Primeira coluna 
+79                 {
+80                     dtw[k][j] = abs(data[k] - data_ref[j]) + dtw[k - 1][j];
+81                     out(2, dtw[k][j]);
+82                 }
+83                 else
+84                 {               
+85                     if (k > 0 && j > 0)         // Para as demais posições
+86                     {
+87                         menor = dtw[k-1][j];
+88                         out(2, menor);  
+89                         if (dtw[k][j-1] < menor) 
+90                         {
+91                             menor = dtw[k][j-1];
+92                             out(2, menor);
+93                         }
+94                         out(2, dtw[k-1][j-1]);
+95                         if (dtw[k-1][j-1] < menor)
+96                         {
+97                             menor = dtw[k-1][j-1];
+98                             out(2, menor);
+99                         }                      
+100                         dtw[k][j] = abs(data[k] - data_ref[j]) + menor;
+101                         out(2, dtw[k][j]);
+102                     }
+103                 }
+104                 j++;
+105             }
+106             k++;
+107         }
+108         
+109         val_final = dtw[k-1][j-1];
+110 
+111         if(dtw[k-1][j-1]>36000)  //Se houver novidade
+112         {
+113             cont    = 0;           // Reset no contador
+114             len_ref = len_data;        // Atualização do comprimento
+115             while(cont < 75)    // Atualização do vetor 1
+116             {
+117                 data_ref[cont]= data[cont];
+118                 cont++ ;
+119             }
+120         }
+121         
+122         out(1,val_final);
+123         out(2, 36000);
+124         
+125     //}
+126     out(0,1);
+127 }
