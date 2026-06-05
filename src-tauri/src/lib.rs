@@ -6,6 +6,31 @@ use commands::*;
 use terminal::TerminalManager; // Importante para o novo sistema de terminal
 use tauri::Manager;
 use std::time::Duration;
+use tauri_plugin_shell::ShellExt;
+
+#[tauri::command]
+async fn read_fst_as_vcd(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    // Inicializa o sidecar binaries/fst2vcd configurado no tauri.conf.json
+    let sidecar_command = app.shell().sidecar("fst2vcd")
+        .map_err(|e| format!("Falha ao inicializar a ferramenta fst2vcd: {}", e))?;
+
+    // Executa a ferramenta passando o caminho do arquivo .fst como argumento
+    let output = sidecar_command
+        .arg(&path)
+        .output()
+        .await
+        .map_err(|e| format!("Erro ao executar fst2vcd: {}", e))?;
+
+    // Se a execução foi bem sucedida, retorna o stdout formatado em String
+    if output.status.success() {
+        let vcd_string = String::from_utf8(output.stdout)
+            .map_err(|e| format!("Falha ao decodificar VCD: {}", e))?;
+        Ok(vcd_string)
+    } else {
+        let err_msg = String::from_utf8_lossy(&output.stderr);
+        Err(format!("Erro interno na conversão: {}", err_msg))
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -42,6 +67,7 @@ pub fn run() {
         create_project_structure,
         generate_processor,
         execute_command, 
+        read_fst_as_vcd, // Novo comando para conversão de FST para VCD
 
         // Comandos do Terminal PTY (Vêm do mod terminal / código novo)
         terminal::get_platform,

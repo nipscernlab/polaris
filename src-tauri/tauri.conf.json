@@ -51,6 +51,9 @@
     "icon": [
       "icons/polaris.svg",
       "icons/polaris.ico"
+    ],
+    "externalBin": [
+      "binaries/fst2vcd"
     ]
   },
   "plugins": {

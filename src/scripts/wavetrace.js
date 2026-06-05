@@ -213,7 +213,15 @@ export async function openWavetraceViewer(filePath, fileName) {
         progressText.textContent = "Lendo arquivo do disco...";
         if (progressBar) progressBar.style.width = "0%";
 
-        const content = await invoke('read_file', { path: filePath });
+        // ===== ADICIONADO: Tratamento automático para arquivos .fst =====
+        let content;
+        if (fileName.toLowerCase().endsWith('.fst')) {
+            progressText.textContent = "Convertendo FST para VCD...";
+            content = await invoke('read_fst_as_vcd', { path: filePath });
+        } else {
+            content = await invoke('read_file', { path: filePath });
+        }
+        // ===============================================================
         
         const parser = new VCDParser();
         
