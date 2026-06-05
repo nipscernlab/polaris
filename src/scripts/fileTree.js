@@ -160,7 +160,6 @@ function createTreeElements(items, level) {
         } else {
             const isSpfFile = item.name.endsWith('.spf');
             const isVcdFile = item.name.endsWith('.vcd');
-            const isFstFile = item.name.endsWith('.fst');
             
             element.classList.add('file');
             
@@ -168,8 +167,6 @@ function createTreeElements(items, level) {
                 element.classList.add('spf-file');
             } else if (isVcdFile) {
                 element.classList.add('vcd-file');
-            } else if (isFstFile) {
-                element.classList.add('fst-file');
             }
             
             const icon = getFileIcon(item.name);
@@ -242,7 +239,6 @@ function getFileIcon(fileName) {
         'v': 'memory',
         'sv': 'memory',
         'vcd': 'show_chart',
-        'fst': 'show_chart',
         'c': 'code',
         'cpp': 'code',
         'h': 'code',
@@ -321,8 +317,8 @@ async function openFile(item) {
     const fileName = item.name;
 
     // INTERCEPT VCD FILES
-    if (fileName.endsWith('.vcd') || fileName.endsWith('.fst')) {
-        console.log('Opening file in Wavetrace viewer:', fileName);
+    if (fileName.endsWith('.vcd')) {
+        console.log('Opening VCD file in Wavetrace viewer:', fileName);
         await openWavetraceViewer(filePath, fileName);
         return;
     }
