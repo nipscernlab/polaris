@@ -968,24 +968,42 @@ function renderHierarchyNode(node, container, level) {
             
             const folderSignals = getAllSignalsInFolder(child);
             
+            // Cria um "dicionário" (Map) rápido para achar as divs no HTML sem usar querySelector!
+            // Isso evita completamente o erro com caracteres especiais do VCD (!, ", #, etc.)
+            const allSignalsDom = document.querySelectorAll('.wt-signal');
+            const signalDomMap = new Map();
+            allSignalsDom.forEach(el => {
+                signalDomMap.set(el.dataset.signalId, el);
+            });
+            
             folderSignals.forEach(sig => {
                 const isDisplayed = wavetraceState.displayedSignals.some(s => s.id === sig.id);
                 
+                // 1. Atualiza o estado lógico
                 if (isChecked && !isDisplayed) {
                     wavetraceState.displayedSignals.push(sig);
                 } else if (!isChecked && isDisplayed) {
                     wavetraceState.displayedSignals = wavetraceState.displayedSignals.filter(s => s.id !== sig.id);
                 }
                 
-                const sigCheckboxDiv = document.querySelector(`.wt-signal[data-signal-id="${sig.id}"] .wt-signal-checkbox`);
-                if (sigCheckboxDiv) {
-                    if (isChecked) {
-                        sigCheckboxDiv.classList.add('checked');
-                    } else {
-                        sigCheckboxDiv.classList.remove('checked');
+                // 2. Atualiza o visual do checkbox de forma 100% segura
+                const signalDiv = signalDomMap.get(sig.id);
+                if (signalDiv) {
+                    const sigCheckboxDiv = signalDiv.querySelector('.wt-signal-checkbox');
+                    if (sigCheckboxDiv) {
+                        if (isChecked) {
+                            sigCheckboxDiv.classList.add('checked');
+                        } else {
+                            sigCheckboxDiv.classList.remove('checked');
+                        }
                     }
                 }
             });
+            
+            // Recalcula o espaço da tela de desenho para acomodar os novos sinais
+            if (typeof updateScrollLimits === 'function') {
+                updateScrollLimits();
+            }
             
             if (typeof renderWaveforms === 'function') {
                 renderWaveforms();
