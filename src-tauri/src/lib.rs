@@ -47,6 +47,7 @@ fn write_scope(
         let vcd_type = match var_obj.var_type() {
             wellen::VarType::Real => "real",
             wellen::VarType::String => "string",
+            wellen::VarType::Integer => "integer",
             _ => "wire",
         };
         

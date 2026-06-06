@@ -327,7 +327,7 @@ function assignSignalFormats() {
         const parts = name.split('_');
         
         let displayName = name; 
-        let radix = signal.width > 1 ? 'hex' : 'binary';
+        let radix = signal.type === 'integer' ? 'decimal' : (signal.width > 1 ? 'hex' : 'binary');
         let renderMode = signal.width === 1 ? 'digital' : 'bus';
         let type = "Default";
         
@@ -1787,44 +1787,74 @@ function drawWaveformSegment(graphics, gradientContainer, x1, x2, y, height, val
     x1 = Math.max(-50, x1);
     x2 = Math.min(wavetraceState.app.view.width + 50, x2);
 
+    const valStr = String(value).toLowerCase();
+    let renderColor = color;
+    let displayValue = value;
+
+    const isTextual = signal.type === 'string' || signal.type === 'real';
+
+    if (!isTextual) {
+        if (valStr.includes('x')) {
+            renderColor = 0xFF3333; 
+        } else if (valStr.includes('u')) {
+            renderColor = 0xAA0000; 
+            displayValue = String(value).toUpperCase();
+        } else if (valStr.includes('z')) {
+            renderColor = 0xFFB000;
+        } else if (valStr.includes('-')) {
+            renderColor = 0xFFD700; 
+            displayValue = String(value).toUpperCase();
+        } else if (valStr === 'h' || valStr === 'l' || valStr.includes('w')) {
+            renderColor = 0x55AA55;
+        }
+    }
+
     const signalName = (signal.name || '').toLowerCase();
     if (signalName.includes('valr2') || signalName.includes('linetabs')) {
-        drawTextBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, color, signal);
+        drawTextBusWaveform(graphics, gradientContainer, x1, x2, y, height, displayValue, renderColor, signal);
         return;
     }
     
-    if (renderMode === 'analog' && width > 1) {
-        drawAnalogWaveform(graphics, gradientContainer, x1, x2, y, height, value, color, signal, nextValue);
-    } else if (width === 1 && renderMode === 'digital') {
-        drawDigitalWaveform(graphics, gradientContainer, x1, x2, y, height, value, color);
+    const forceBusSize = valStr.length > 1 || valStr === 'u' || valStr === 'w' || valStr === '-';
+    
+    if (renderMode === 'analog' && width > 1 && !forceBusSize) {
+        drawAnalogWaveform(graphics, gradientContainer, x1, x2, y, height, displayValue, renderColor, signal, nextValue);
+    } else if (width === 1 && renderMode === 'digital' && !forceBusSize) {
+        drawDigitalWaveform(graphics, gradientContainer, x1, x2, y, height, displayValue, renderColor);
     } else {
-        drawBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, color, signal);
+        drawBusWaveform(graphics, gradientContainer, x1, x2, y, height, displayValue, renderColor, signal);
     }
 }
 
 function drawDigitalWaveform(graphics, gradientContainer, x1, x2, y, height, value, color) {
-    graphics.lineStyle(2.5, color, 0.9);
-    
-    if (value === '1') {
-        gradientContainer.beginFill(color, 0.12);
-        gradientContainer.drawRect(x1, y, x2 - x1, height / 2);
+    const valStr = String(value).toLowerCase();
+
+    if (valStr === 'z') {
+        graphics.lineStyle(2, color, 0.9);
+        graphics.moveTo(x1, y + height / 2);
+        graphics.lineTo(x2, y + height / 2);
+        return;
+    }
+
+    if (valStr === 'x') {
+        gradientContainer.beginFill(color, 0.4); 
+        gradientContainer.drawRect(x1, y, x2 - x1, height);
         gradientContainer.endFill();
         
+        graphics.lineStyle(1.5, color, 0.9);
         graphics.moveTo(x1, y);
         graphics.lineTo(x2, y);
-    } else if (value === '0') {
-        gradientContainer.beginFill(color, 0.06);
-        gradientContainer.drawRect(x1, y + height / 2, x2 - x1, height / 2);
-        gradientContainer.endFill();
-        
         graphics.moveTo(x1, y + height);
         graphics.lineTo(x2, y + height);
-    } else {
-        const midY = y + height / 2;
-        graphics.lineStyle(2, color, 0.5);
-        graphics.moveTo(x1, midY);
-        graphics.lineTo(x2, midY);
+        return;
     }
+
+    const isHigh = (valStr === '1' || valStr === 'h');
+    const yPos = isHigh ? y : y + height;
+    
+    graphics.lineStyle(2, color, 0.9);
+    graphics.moveTo(x1, yPos);
+    graphics.lineTo(x2, yPos);
 }
 
 function drawBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, color, signal) {
@@ -1833,13 +1863,19 @@ function drawBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, 
     const slant = 6;
     const points = [x1 + slant, y, x2, y, x2 - slant, y + height, x1, y + height];
     
-    gradientContainer.beginFill(color, 0.12);
+    const valStr = String(value).toLowerCase();
+    const isSpecialState = valStr === 'u' || valStr === 'w' || valStr === '-';
+    const bgOpacity = isSpecialState ? 0.24 : 0.12; 
+    
+    gradientContainer.beginFill(color, bgOpacity);
     gradientContainer.drawPolygon(points);
     gradientContainer.endFill();
     
-    gradientContainer.beginFill(color, 0.05);
-    gradientContainer.drawPolygon([x1 + slant, y + height * 0.4, x2, y + height * 0.4, x2 - slant, y + height, x1, y + height]);
-    gradientContainer.endFill();
+    if (!isSpecialState) {
+        gradientContainer.beginFill(color, 0.05);
+        gradientContainer.drawPolygon([x1 + slant, y + height * 0.4, x2, y + height * 0.4, x2 - slant, y + height, x1, y + height]);
+        gradientContainer.endFill();
+    }
     
     graphics.moveTo(x1 + slant, y);
     graphics.lineTo(x2, y);
@@ -1848,13 +1884,16 @@ function drawBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, 
     graphics.lineTo(x1 + slant, y);
     
     if (x2 - x1 > 35) {
-        const displayValue = formatBusValue(value, signal);
+        const displayValue = isSpecialState ? value : formatBusValue(value, signal);
         
+        
+        const textColor = isSpecialState ? 0x999999 : (wavetraceState.colors?.text || 0xffffff);
+
         const valueText = new PIXI.Text(displayValue, {
             fontFamily: 'JetBrains Mono, monospace',
             fontSize: 10,
-            fill: wavetraceState.colors?.text || 0xffffff,
-            fontWeight: '700'
+            fill: textColor,
+            fontWeight: '900'
         });
         
         valueText.x = (x1 + x2) / 2 - valueText.width / 2;
@@ -1939,39 +1978,39 @@ function drawAnalogWaveform(graphics, gradientContainer, x1, x2, y, height, valu
 }
 
 function formatBusValue(value, signal) {
-    if (signal.type === 'string' || signal.type === 'real')return value; 
-    const radix = wavetraceState.signalRadix.get(signal.id) || 'hex';
-    
+    if (signal.type === 'string' || signal.type === 'real') {
+        return value; 
+    }
+
     if (value.includes('x') || value.includes('X')) return 'X';
     if (value.includes('z') || value.includes('Z')) return 'Z';
 
-    const signalName = (signal.name || '').toLowerCase();
-    
-    if (signalName.includes('valr2') || signalName.includes('linetabs')) {
-        let decimalVal = parseInt(value, 2);
-
-        if (value.length === 32 && value[0] === '1') {
-            decimalVal = decimalVal - 4294967296;
-        }
-
-        if (signalName.includes('valr2') && wavetraceState.opcodeMap.has(decimalVal)) {
-            return wavetraceState.opcodeMap.get(decimalVal);
-        }
-
-        if (signalName.includes('linetabs') && wavetraceState.cmmMap.has(decimalVal)) {
-            return wavetraceState.cmmMap.get(decimalVal);
-        }
+    let radix = wavetraceState.signalRadix.get(signal.id);
+    if (!radix) {
+        radix = (signal.type === 'integer') ? 'decimal' : 'hex';
     }
-    
-    const decimal = parseInt(value, 2);
-    if (isNaN(decimal)) return value;
-    
+
+    let decimalValue;
+    try {
+        decimalValue = BigInt('0b' + value);
+    } catch (e) {
+        return value; 
+    }
+
     switch (radix) {
-        case 'hex': return '0x' + decimal.toString(16).toUpperCase();
-        case 'decimal': return decimal.toString(10);
-        case 'binary': return '0b' + value;
-        case 'octal': return '0o' + decimal.toString(8);
-        default: return '0x' + decimal.toString(16).toUpperCase();
+        case 'hex': {
+            let hexStr = decimalValue.toString(16).toUpperCase();
+            let targetLen = Math.ceil(signal.width / 4);
+            return hexStr.padStart(targetLen, '0');
+        }
+        case 'decimal': {
+            return decimalValue.toString(10);
+        }
+        case 'binary': {
+            return '0b' + value.padStart(signal.width, '0');
+        }
+        default:
+            return value;
     }
 }
 
