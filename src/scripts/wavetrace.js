@@ -375,6 +375,12 @@ function assignSignalFormats() {
             radix = "hex"; 
             type = "Variables";
         } 
+        else if (name.startsWith("comp")) {
+            const varName = parts.slice(4, -2).join('_');
+            displayName = `complex ${varName} in ${parts[2]}`;
+            radix = "complex";
+            type = "Variables";
+        }
         
         else if (name.includes("pointeri")) {
             if (signal.path.includes("isp")) {
@@ -1683,6 +1689,49 @@ function calculateTimeStep() {
     return niceStep * magnitude;
 }
 
+function formatComplexValue(binValue) {
+    const valLow = String(binValue).toLowerCase();
+    if (valLow.includes('x') || valLow.includes('z') || valLow.includes('u') || valLow.includes('w')) {
+        return binValue;
+    }
+
+    if (binValue.length < 16) return binValue;
+
+    const nbm = parseInt(binValue.substring(0, 8), 2);
+    const nbe = parseInt(binValue.substring(8, 16), 2);
+    const nbits = 1 + nbm + nbe;
+
+    if (binValue.length < 16 + 2 * nbits) return binValue;
+
+    const reStr = binValue.substring(16, 16 + nbits);
+    const imStr = binValue.substring(16 + nbits, 16 + 2 * nbits);
+
+    function b2mf(binStr, num_m, num_e) {
+        const s = binStr[0] === '1';
+        let exb = binStr.substring(1, 1 + num_e);
+        
+        const es = exb[0] === '1';
+        if (es) {
+            exb = exb.split('').map(b => b === '1' ? '0' : '1').join('');
+        }
+        
+        let e = parseInt(exb, 2);
+        if (es) e = -(e + 1);
+
+        const mab = binStr.substring(1 + num_e, 1 + num_e + num_m);
+        const m = parseInt(mab, 2);
+
+        let f = m * Math.pow(2, e);
+        if (s) f = -f;
+        return f;
+    }
+
+    const fre = b2mf(reStr, nbm, nbe);
+    const fim = b2mf(imStr, nbm, nbe);
+
+    return `${fre.toFixed(2)} + j ${fim.toFixed(2)}`;
+}
+
 function drawSignal(container, signal, yOffset, width) {
     const graphics = new PIXI.Graphics();
     const signalHeight = wavetraceState.signalHeight;
@@ -1887,7 +1936,7 @@ function drawBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, 
         const displayValue = isSpecialState ? value : formatBusValue(value, signal);
         
         
-        const textColor = isSpecialState ? 0x999999 : (wavetraceState.colors?.text || 0xffffff);
+        const textColor = isSpecialState ? 0xBBBBBB : (wavetraceState.colors?.text || 0xffffff);
 
         const valueText = new PIXI.Text(displayValue, {
             fontFamily: 'JetBrains Mono, monospace',
@@ -1980,6 +2029,13 @@ function drawAnalogWaveform(graphics, gradientContainer, x1, x2, y, height, valu
 function formatBusValue(value, signal) {
     if (signal.type === 'string' || signal.type === 'real') {
         return value; 
+    }
+
+    const sigName = (signal.name || '').toLowerCase();
+    if (sigName.includes('complex') || sigName.includes('comp_')) {
+        const paddedValue = value.padStart(signal.width, '0');
+        
+        return formatComplexValue(paddedValue);
     }
 
     if (value.includes('x') || value.includes('X')) return 'X';
