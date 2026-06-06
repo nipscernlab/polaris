@@ -98,9 +98,12 @@ class VCDParser {
                 } else if (line.startsWith('$var')) {
                     const parts = line.split(/\s+/);
                     const type = parts[1];
-                    const width = parseInt(parts[2]);
+                    let width = parseInt(parts[2]);
                     const id = parts[3];
                     const name = parts[4];
+                    if (type === 'string' || type === 'real') {
+                        width = 8; 
+                    }
                     const fullPath = [...this.scope, name].join('.');
                     
                     const signal = {
@@ -126,11 +129,26 @@ class VCDParser {
                 }
             } else if (line.length > 0) {
                 let value, id;
-                if (line[0] === 'b') {
+                const firstChar = line[0].toLowerCase();
+                
+                if (firstChar === 'b') {
+                    // Sinais binários de múltiplos bits
                     const parts = line.split(/\s+/);
                     value = parts[0].substring(1);
                     id = parts[1];
+                } else if (firstChar === 'r') {
+                    // Sinais do tipo Real (Decimal)
+                    const parts = line.split(/\s+/);
+                    value = parts[0].substring(1); // Ex: 3.1415
+                    id = parts[1];
+                } else if (firstChar === 's') {
+                    // Sinais do tipo String (Texto)
+                    // Usamos lastIndexOf porque a string pode conter espaços dentro dela!
+                    const lastSpace = line.lastIndexOf(' ');
+                    value = line.substring(1, lastSpace); // Ex: "str-0"
+                    id = line.substring(lastSpace + 1);
                 } else {
+                    // Sinais digitais de 1 bit (0, 1, x, z)
                     value = line[0];
                     id = line.substring(1);
                 }
@@ -1921,6 +1939,7 @@ function drawAnalogWaveform(graphics, gradientContainer, x1, x2, y, height, valu
 }
 
 function formatBusValue(value, signal) {
+    if (signal.type === 'string' || signal.type === 'real')return value; 
     const radix = wavetraceState.signalRadix.get(signal.id) || 'hex';
     
     if (value.includes('x') || value.includes('X')) return 'X';

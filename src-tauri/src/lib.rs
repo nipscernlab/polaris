@@ -43,8 +43,14 @@ fn write_scope(
         let size = var_obj.length(hierarchy).unwrap_or(1);
         let sig_ref = var_obj.signal_ref();
         let id_str = index_to_vcd_id(sig_ref.index()); 
+
+        let vcd_type = match var_obj.var_type() {
+            wellen::VarType::Real => "real",
+            wellen::VarType::String => "string",
+            _ => "wire",
+        };
         
-        writeln!(vcd_output, "$var wire {} {} {} $end", size, id_str, var_name).unwrap();
+        writeln!(vcd_output, "$var {} {} {} {} $end", vcd_type, size, id_str, var_name).unwrap();
         all_vars.push(var_ref);
     }
     
@@ -57,7 +63,6 @@ fn write_scope(
 
 #[tauri::command]
 async fn read_fst_as_vcd(path: String) -> Result<String, String> {
-    // 1. Carrega o arquivo (Tornamos a wave mutável para poder descompactar os dados depois)
     let mut wave = wellen::simple::read(&path)
         .map_err(|e| format!("Falha ao ler o arquivo binário: {:?}", e))?;
 
@@ -69,7 +74,7 @@ async fn read_fst_as_vcd(path: String) -> Result<String, String> {
     let mut all_vars = Vec::new();
     
     // =========================================================================
-    // BLOCO 1: LER A HIERARQUIA (Escopo de empréstimo)
+    // BLOCO 1: LER A HIERARQUIA
     // =========================================================================
     {
         let hierarchy = wave.hierarchy();
@@ -90,8 +95,14 @@ async fn read_fst_as_vcd(path: String) -> Result<String, String> {
             let size = var_obj.length(hierarchy).unwrap_or(1);
             let sig_ref = var_obj.signal_ref();
             let id_str = index_to_vcd_id(sig_ref.index());
+
+            let vcd_type = match var_obj.var_type() {
+                wellen::VarType::Real => "real",
+                wellen::VarType::String => "string",
+                _ => "wire",
+            };
             
-            writeln!(vcd_output, "$var wire {} {} {} $end", size, id_str, var_name).unwrap();
+            writeln!(vcd_output, "$var {} {} {} {} $end", vcd_type, size, id_str, var_name).unwrap();
             all_vars.push(var_ref);
         }
         
@@ -101,26 +112,23 @@ async fn read_fst_as_vcd(path: String) -> Result<String, String> {
         }
         
         writeln!(vcd_output, "$enddefinitions $end").unwrap();
-    } // Aqui a `hierarchy` é liberada da memória temporariamente.
+    }
 
     // =========================================================================
-    // BLOCO 2: O SEGREDO DO FST (Descompactar os sinais reais para a RAM)
+    // BLOCO 2: EXTRAÇÃO FÍSICA DOS SINAIS
     // =========================================================================
     let all_sigs: Vec<wellen::SignalRef> = {
         let hierarchy = wave.hierarchy();
         let mut set = HashSet::new();
-        // Coletamos IDs únicos dos sinais físicos para não carregar duplicatas (aliases)
         for v in &all_vars {
             set.insert(hierarchy[*v].signal_ref());
         }
         set.into_iter().collect()
     };
-    
-    // ESTA É A LINHA MÁGICA: Extrai os bits dos blocos zipados!
     wave.load_signals(&all_sigs);
 
     // =========================================================================
-    // BLOCO 3: PREENCHER A LINHA DO TEMPO (Agora com dados de verdade)
+    // BLOCO 3: PREENCHER A LINHA DO TEMPO
     // =========================================================================
     let hierarchy = wave.hierarchy();
     let time_table = wave.time_table();
@@ -131,6 +139,7 @@ async fn read_fst_as_vcd(path: String) -> Result<String, String> {
     
     let mut dumped_in_this_step = HashSet::new();
     
+    // --- INICIALIZAÇÃO (TEMPO 0) CORRIGIDA ---
     for var_ref in &all_vars {
         let var = &hierarchy[*var_ref];
         let sig_ref = var.signal_ref();
@@ -141,22 +150,37 @@ async fn read_fst_as_vcd(path: String) -> Result<String, String> {
         let id_str = index_to_vcd_id(sig_ref.index());
         let mut current_value = "x".repeat(size as usize);
         
+        let is_real = var.var_type() == wellen::VarType::Real;
+        let is_string = var.var_type() == wellen::VarType::String;
+        
         if let Some(signal) = wave.get_signal(sig_ref) {
             if let Some(offset) = signal.get_offset(0) {
                 let value_ref = signal.get_value_at(&offset, 0);
-                current_value = value_ref.to_bit_string().unwrap_or(current_value);
+                // Aplica a regra de extrair texto ou bits também no tempo 0!
+                current_value = if let Some(bit_str) = value_ref.to_bit_string() {
+                    bit_str
+                } else {
+                    format!("{}", value_ref) 
+                };
             }
         }
         
-        if size == 1 {
+        // Escreve com os prefixos r, s ou b
+        if is_real {
+            writeln!(vcd_output, "r{} {}", current_value, id_str).unwrap();
+        } else if is_string {
+            writeln!(vcd_output, "s{} {}", current_value, id_str).unwrap();
+        } else if size == 1 {
             writeln!(vcd_output, "{}{}", current_value, id_str).unwrap();
         } else {
             writeln!(vcd_output, "b{} {}", current_value, id_str).unwrap();
         }
+        
         last_state.insert(sig_ref.index(), current_value);
     }
     writeln!(vcd_output, "$end").unwrap();
 
+    // --- MUDANÇAS DE ESTADO (TEMPO > 0) CORRIGIDA ---
     for (time_index, &time_value) in time_table.iter().enumerate() {
         if time_index == 0 { continue; }
         
@@ -175,11 +199,23 @@ async fn read_fst_as_vcd(path: String) -> Result<String, String> {
             if let Some(signal) = wave.get_signal(sig_ref) {
                 if let Some(offset) = signal.get_offset(time_index as u32) {
                     let value_ref = signal.get_value_at(&offset, 0);
-                    let val = value_ref.to_bit_string().unwrap_or_else(|| "x".repeat(size as usize));
+                    
+                    let is_real = var.var_type() == wellen::VarType::Real;
+                    let is_string = var.var_type() == wellen::VarType::String;
+                    
+                    let val = if let Some(bit_str) = value_ref.to_bit_string() {
+                        bit_str
+                    } else {
+                        format!("{}", value_ref) 
+                    };
                     
                     let changed = last_state.get(&sig_ref.index()) != Some(&val);
                     if changed {
-                        if size == 1 {
+                        if is_real {
+                            writeln!(step_changes, "r{} {}", val, id_str).unwrap();
+                        } else if is_string {
+                            writeln!(step_changes, "s{} {}", val, id_str).unwrap();
+                        } else if size == 1 {
                             writeln!(step_changes, "{}{}", val, id_str).unwrap();
                         } else {
                             writeln!(step_changes, "b{} {}", val, id_str).unwrap();
