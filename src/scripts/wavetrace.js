@@ -161,7 +161,6 @@ class VCDParser {
     }
 }
 
-// ===== FUNÇÃO AUXILIAR PARA PROCESSAR TRADUÇÕES =====
 function parseTranslationFiles(opcodeText, cmmText) {
     wavetraceState.opcodeMap.clear();
     wavetraceState.cmmMap.clear();
@@ -499,7 +498,6 @@ function initWavetraceUI() {
     observeLayoutChanges();
 }
 
-// ===== ATUALIZA O SLIDER BASEADO NO ZOOM E PAN ATUAIS =====
 function updateHorizontalSlider() {
     const slider = document.getElementById('wtHorizontalScroll');
     if (!slider || !wavetraceState.vcdData) return;
@@ -1724,7 +1722,6 @@ function drawSignal(container, signal, yOffset, width) {
     container.addChild(graphics);
 }
 
-// ===== NOVA FUNÇÃO: DESENHA O BARRAMENTO DE TEXTO COM ALTURA FIXA E QUEDA EM 0 =====
 function drawTextBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, color, signal) {
     graphics.lineStyle(2, color, 0.95);
 
