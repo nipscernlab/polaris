@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { invoke } from '@tauri-apps/api/core';
+import { ask } from '@tauri-apps/plugin-dialog';
 
 // ===== WAVETRACE STATE =====
 const wavetraceState = {
@@ -74,7 +75,7 @@ class VCDParser {
         this.timeValues = [];
     }
 
-        async parse(vcdContent, onProgress) {
+    async parse(vcdContent, onProgress) {
         const lines = vcdContent.split('\n');
         const totalLines = lines.length;
         let inHeader = true;
@@ -274,6 +275,13 @@ export async function openWavetraceViewer(filePath, fileName) {
 
         assignSignalColors();
         assignSignalFormats();
+        if (progressText) progressText.textContent = "Organizando hierarquia de sinais...";
+        
+        wavetraceState.signals.sort((sinalA, sinalB) => {
+            const caminhoA = getCustomHierarchyPath(sinalA);
+            const caminhoB = getCustomHierarchyPath(sinalB);
+            return sortWavetraceHierarchy(caminhoA, caminhoB);
+        });
         initWavetraceUI();
         
         console.log(`Loaded ${vcdData.signals.length} signals from VCD file`);
@@ -414,45 +422,73 @@ function getCustomHierarchyPath(signal) {
     const signalName = originalParts[originalParts.length - 1];
     const tbName = originalParts[0] || "Root"; 
     
-    let procFolder = "proc";
 
     let procInstance = null;
     for (let i = 1; i < originalParts.length - 1; i++) {
-        if (originalParts[i].toLowerCase().includes('proc')) {
+        if (originalParts[i].toLowerCase().includes('proc') && originalParts[i].toLowerCase().includes('inst')) {
             procInstance = originalParts[i];
             break;
         }
     }
 
-    if (procInstance) {
-        procFolder = `proc.${procInstance}`;
-    } else if (originalParts.length > 2) {
-        procFolder = originalParts[1];
-    }
-
     if (signal.name.includes('clk') || signal.name.includes('rst')) {
         return `${tbName}.${signalName}`; 
     }
+    
+    const basePath = procInstance ? `${tbName}.${procInstance}` : tbName;
 
     if (type === "Flags") {
-        
         if (signal.path.includes('.core.')) {
             if (signal.path.includes('sp')) {
-                return signal.path.replace('.p_ProcDTW', '').replace('.core.', '.Flags.').replace('.sp.', '.STACK.');
+                return `${basePath}.Flags.STACK.${signalName}`;
             } else if (signal.path.includes('ula')) {
-                return signal.path.replace('.p_ProcDTW', '').replace('.core.', '.Flags.').replace('.ula.', '.ULA.');
+                return `${basePath}.Flags.ULA.${signalName}`;
             }
         } 
-        else {
-            return `${tbName}.${procFolder}.Flags.${signalName}`;
-        }
+        return `${basePath}.Flags.${signalName}`;
     }
 
     if (type === "I/O" || type === "Instructions" || type === "Variables") {
-        return `${tbName}.${procFolder}.${type}.${signalName}`;
+        return `${basePath}.${type}.${signalName}`;
     }
 
-    return `${tbName}.${procFolder}.Others.${signalName}`;
+    return `${basePath}.Others.${signalName}`;
+}
+
+function getSortWeight(name) {
+    const lowerName = name.toLowerCase();
+    
+    if (lowerName.includes('clk')) return 1;
+    if (lowerName.includes('rst')) return 2;
+    
+    if (name === 'I/O') return 3;
+    if (name === 'Instructions') return 4;
+    if (name === 'Variables') return 5;
+    if (name === 'Flags') return 6;
+    
+    if (name === 'Others') return 100;
+    
+    return 10; 
+}
+
+function sortWavetraceHierarchy(pathA, pathB) {
+    const partsA = pathA.split('.');
+    const partsB = pathB.split('.');
+    const len = Math.min(partsA.length, partsB.length);
+
+    for (let i = 0; i < len; i++) {
+        if (partsA[i] !== partsB[i]) {
+            const weightA = getSortWeight(partsA[i]);
+            const weightB = getSortWeight(partsB[i]);
+            
+            if (weightA !== weightB) {
+                return weightA - weightB;
+            }
+            
+            return partsA[i].localeCompare(partsB[i]);
+        }
+    }
+    return partsA.length - partsB.length;
 }
 
 function initWavetraceUI() {
@@ -822,9 +858,54 @@ function renderSignalTree() {
     if (!treeContainer) return;
 
     const hierarchy = buildSignalHierarchy(wavetraceState.signals);
-    
     treeContainer.innerHTML = '';
     renderHierarchyNode(hierarchy, treeContainer, 0);
+
+    const allContainers = [treeContainer, ...treeContainer.querySelectorAll('.wt-scope-children')];
+    
+    allContainers.forEach(container => {
+        const items = [];
+        const childrenArray = Array.from(container.children);
+        
+        for (let i = 0; i < childrenArray.length; i++) {
+            const el = childrenArray[i];
+            
+            if (el.classList.contains('wt-scope')) {
+                const contentEl = childrenArray[i + 1]; 
+                const nameSpan = el.querySelector('.wt-scope-name');
+                const name = nameSpan ? nameSpan.textContent : '';
+                
+                items.push({ 
+                    name: name, 
+                    weight: getSortWeight(name), 
+                    elements: [el, contentEl] 
+                });
+                i++; 
+            } 
+            
+            else if (el.classList.contains('wt-signal')) {
+                const nameSpan = el.querySelector('.wt-signal-name');
+                const name = nameSpan ? nameSpan.textContent : '';
+                
+                items.push({ 
+                    name: name, 
+                    weight: getSortWeight(name), 
+                    elements: [el] 
+                });
+            }
+        }
+        
+        items.sort((a, b) => {
+            if (a.weight !== b.weight) return a.weight - b.weight;
+            return a.name.localeCompare(b.name);
+        });
+        
+        items.forEach(item => {
+            item.elements.forEach(domEl => {
+                if (domEl) container.appendChild(domEl);
+            });
+        });
+    });
 }
 
 function buildSignalHierarchy(signals) {
