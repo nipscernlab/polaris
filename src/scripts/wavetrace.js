@@ -310,7 +310,7 @@ function assignSignalFormats() {
         
         let displayName = name; 
         let radix = signal.width > 1 ? 'hex' : 'binary';
-        let renderMode = signal.width === 1 ? 'digital' : 'analog';
+        let renderMode = signal.width === 1 ? 'digital' : 'bus';
         let type = "Default";
         
         if (name.includes("req_in_sim")) {
@@ -1829,17 +1829,22 @@ function drawBusWaveform(graphics, gradientContainer, x1, x2, y, height, value, 
     graphics.lineTo(x1, y + height);
     graphics.lineTo(x1 + slant, y);
     
-    if (x2 - x1 > 40) {
+    if (x2 - x1 > 35) {
         const displayValue = formatBusValue(value, signal);
+        
         const valueText = new PIXI.Text(displayValue, {
-            fontFamily: 'JetBrains Mono',
+            fontFamily: 'JetBrains Mono, monospace',
             fontSize: 10,
-            fill: wavetraceState.colors.text,
+            fill: wavetraceState.colors?.text || 0xffffff,
             fontWeight: '700'
         });
+        
         valueText.x = (x1 + x2) / 2 - valueText.width / 2;
-        valueText.y = y + height / 2 - 5;
-        graphics.addChild(valueText);
+        valueText.y = y + height / 2 - valueText.height / 2; 
+        
+        if (valueText.width < (x2 - x1 - 10)) {
+            graphics.addChild(valueText);
+        }
     }
 }
 
