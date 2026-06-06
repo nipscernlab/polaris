@@ -203,6 +203,9 @@ export async function openWavetraceViewer(filePath, fileName) {
     closeWavetraceViewer();
     console.log('Opening Wavetrace viewer for:', fileName);
     
+    if (typeof wavetraceState === 'undefined') window.wavetraceState = {};
+    wavetraceState.cancelLoad = false;
+    
     let loader = document.getElementById('wtFileLoader');
     if (!loader) {
         loader = document.createElement('div');
@@ -212,17 +215,36 @@ export async function openWavetraceViewer(filePath, fileName) {
             <div style="width: 320px; height: 8px; background: #252538; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
                 <div id="wtProgressBar" style="width: 0%; height: 100%; background: #a78bfa; transition: width 0.05s ease-out;"></div>
             </div>
-            <div id="wtProgressText" style="font-size: 13px; color: #a8a8c0;">Lendo dados...</div>
+            <div id="wtProgressText" style="font-size: 13px; color: #a8a8c0; margin-bottom: 15px;">Lendo dados...</div>
+            <button id="wtBtnCancelLoad" style="padding: 6px 16px; background: #ef4444; color: #ffffff; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
+                Cancelar Leitura
+            </button>
         `;
         document.body.appendChild(loader);
     } else {
         loader.style.display = 'flex';
     }
 
+    const cancelBtn = document.getElementById('wtBtnCancelLoad');
+    if (cancelBtn) {
+        cancelBtn.disabled = false;
+        cancelBtn.style.background = "#ef4444";
+        cancelBtn.textContent = "Cancelar Leitura";
+        
+        cancelBtn.onclick = () => {
+            wavetraceState.cancelLoad = true;
+            cancelBtn.textContent = "Cancelando...";
+            cancelBtn.style.background = "#991b1b";
+            cancelBtn.disabled = true;
+        };
+    }
+
     const progressBar = document.getElementById('wtProgressBar');
     const progressText = document.getElementById('wtProgressText');
 
     try {
+        if (wavetraceState.cancelLoad) throw new Error('USER_CANCELLED');
+
         progressText.textContent = "Lendo arquivo do disco...";
         if (progressBar) progressBar.style.width = "0%";
 
@@ -234,9 +256,15 @@ export async function openWavetraceViewer(filePath, fileName) {
             content = await invoke('read_file', { path: filePath });
         }
         
+        if (wavetraceState.cancelLoad) throw new Error('USER_CANCELLED');
+        
         const parser = new VCDParser();
         
         const vcdData = await parser.parse(content, (current, total) => {
+            if (wavetraceState.cancelLoad) {
+                throw new Error('USER_CANCELLED');
+            }
+
             const percentage = ((current / total) * 100).toFixed(0);
             if (progressBar) progressBar.style.width = `${percentage}%`;
             if (progressText) {
@@ -244,11 +272,14 @@ export async function openWavetraceViewer(filePath, fileName) {
             }
         });
         
+        if (wavetraceState.cancelLoad) throw new Error('USER_CANCELLED');
+
         wavetraceState.filePath = filePath;
         wavetraceState.fileName = fileName;
         wavetraceState.vcdData = vcdData;
         wavetraceState.signals = vcdData.signals;
         wavetraceState.active = true;
+
         try {
             const lastSlash = filePath.lastIndexOf('/');
             const lastBackslash = filePath.lastIndexOf('\\');
@@ -261,12 +292,18 @@ export async function openWavetraceViewer(filePath, fileName) {
             progressText.textContent = "Carregando arquivos de tradução...";
 
             const opcodeContent = await invoke('read_file', { path: opcodePath });
+            if (wavetraceState.cancelLoad) throw new Error('USER_CANCELLED');
+
             const cmmContent = await invoke('read_file', { path: cmmPath });
+            if (wavetraceState.cancelLoad) throw new Error('USER_CANCELLED');
 
             parseTranslationFiles(opcodeContent, cmmContent);
         } catch (errTxt) {
+            if (errTxt.message === 'USER_CANCELLED') throw errTxt;
             console.warn("Aviso: Arquivos trad_opcode.txt ou trad_cmm.txt não encontrados na mesma pasta do VCD.", errTxt);
         }
+
+        if (wavetraceState.cancelLoad) throw new Error('USER_CANCELLED');
 
         const container = document.getElementById('wavetraceContainer');
         if (container) {
@@ -282,10 +319,19 @@ export async function openWavetraceViewer(filePath, fileName) {
             const caminhoB = getCustomHierarchyPath(sinalB);
             return sortWavetraceHierarchy(caminhoA, caminhoB);
         });
+
+        if (wavetraceState.cancelLoad) throw new Error('USER_CANCELLED');
+
         initWavetraceUI();
         
         console.log(`Loaded ${vcdData.signals.length} signals from VCD file`);
+
     } catch (error) {
+        if (error.message === 'USER_CANCELLED') {
+            console.log('Leitura do arquivo VCD cancelada com sucesso pelo usuário.');
+            return;
+        }
+
         console.error('Error opening VCD file:', error);
         alert(`Failed to open VCD file: ${error}`);
     } finally {
