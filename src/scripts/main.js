@@ -29,8 +29,8 @@ async function initApp() {
         setupActivityBar();
         initSidebarResizer();
 
-        const terminal = initTerminal();
-        window.terminal = terminal;
+        //const terminal = initTerminal();
+        //window.terminal = terminal;
 
         console.log('POLARIS Editor initialized');
 

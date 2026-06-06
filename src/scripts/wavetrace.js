@@ -603,6 +603,41 @@ function initWavetraceUI() {
     setupKeyboardNavigation();
     setupSidebarResize();
     observeLayoutChanges();
+
+    const canvasWrapper = document.getElementById('canvasWrapper');
+    if (canvasWrapper) {
+        canvasWrapper.addEventListener('wheel', function(event) {
+            if (event.shiftKey) {
+                event.preventDefault(); 
+                
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+
+                if (!wavetraceState.vcdData) return;
+
+                const { start, end } = wavetraceState.vcdData.timeRange;
+                const canvasWidth = wavetraceState.app.view.width;
+                const maxTimeOffset = end - (canvasWidth / wavetraceState.timeScale);
+
+                if (maxTimeOffset <= start) return;
+
+                const wheelDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+                const timeDelta = (wheelDelta / wavetraceState.timeScale) * 1.0;
+
+                let newOffset = wavetraceState.timeOffset + timeDelta;
+                newOffset = Math.max(start, Math.min(maxTimeOffset, newOffset));
+
+                if (newOffset !== wavetraceState.timeOffset) {
+                    wavetraceState.timeOffset = newOffset;
+                    updateHorizontalSlider();
+                    
+                    if (typeof renderWaveforms === 'function') {
+                        renderWaveforms();
+                    }
+                }
+            }
+        }, { passive: false, capture: true });
+    }
 }
 
 function updateHorizontalSlider() {
@@ -2238,6 +2273,35 @@ function formatBusValue(value, signal) {
 
     if (value.includes('x') || value.includes('X')) return 'X';
     if (value.includes('z') || value.includes('Z')) return 'Z';
+
+    const lowerName = signal.name ? signal.name.toLowerCase() : '';
+    const isOpcode = lowerName.includes('assembly') || lowerName.includes('valr2');
+    const isCmm = lowerName.includes('c+-') || lowerName.includes('linetabs');
+
+    if (isOpcode || isCmm) {
+        try {
+            const width = signal.width || signal.size || 32;
+            const binStr = value.padStart(signal.width, '0');
+            let signedNum;
+            
+            if (binStr[0] === '0') {
+                signedNum = Number(BigInt('0b' + binStr));
+            } else {
+                let inverted = '';
+                for (let i = 0; i < binStr.length; i++) {
+                    inverted += binStr[i] === '1' ? '0' : '1';
+                }
+                signedNum = -Number(BigInt('0b' + inverted) + 1n);
+            }
+
+            const targetMap = isOpcode ? wavetraceState.opcodeMap : wavetraceState.cmmMap;
+            
+            if (targetMap && targetMap.has(signedNum)) {
+                return targetMap.get(signedNum);
+            }
+        } catch (e) {
+        }
+    }
 
     let radix = wavetraceState.signalRadix.get(signal.id);
     if (!radix) {
