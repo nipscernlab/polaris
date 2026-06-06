@@ -132,23 +132,18 @@ class VCDParser {
                 const firstChar = line[0].toLowerCase();
                 
                 if (firstChar === 'b') {
-                    // Sinais binários de múltiplos bits
                     const parts = line.split(/\s+/);
                     value = parts[0].substring(1);
                     id = parts[1];
                 } else if (firstChar === 'r') {
-                    // Sinais do tipo Real (Decimal)
                     const parts = line.split(/\s+/);
-                    value = parts[0].substring(1); // Ex: 3.1415
+                    value = parts[0].substring(1);
                     id = parts[1];
                 } else if (firstChar === 's') {
-                    // Sinais do tipo String (Texto)
-                    // Usamos lastIndexOf porque a string pode conter espaços dentro dela!
                     const lastSpace = line.lastIndexOf(' ');
-                    value = line.substring(1, lastSpace); // Ex: "str-0"
+                    value = line.substring(1, lastSpace);
                     id = line.substring(lastSpace + 1);
                 } else {
-                    // Sinais digitais de 1 bit (0, 1, x, z)
                     value = line[0];
                     id = line.substring(1);
                 }
@@ -307,7 +302,7 @@ function assignSignalColors() {
         else if (["req_in_sim", "in_sim", "out_en_sim", "out_sig"].includes(baseName)) {
             assignedColor = wavetraceState.colorsSignal.io;
         }
-        else if (parts[0] === "me1" || parts[0] === "me2" || parts[0] === "arr" || parts[0] === "comp") {
+        else if (parts[0] === "me1" || parts[0] === "me2" || parts[0] === "me3" || parts[0] === "arr" || parts[0] === "comp") {
             assignedColor = wavetraceState.colorsSignal.vars;
         }
         else if (name === "clk" || name === "rst") { 
@@ -338,7 +333,7 @@ function assignSignalFormats() {
         } 
         else if (name.includes("in_sim") && !name.includes("req_in")) {
             displayName = "input " + parts[parts.length - 1];
-            radix = "decimal"; 
+            radix = "signed decimal"; 
             type = "I/O";
         } 
         else if (name.includes("out_en_sim")) {
@@ -348,36 +343,42 @@ function assignSignalFormats() {
         } 
         else if (name.includes("out_sig")) {
             displayName = "output " + parts[parts.length - 1];
-            radix = "decimal";
+            radix = "signed decimal";
             type = "I/O";
         }
         
         else if (name.includes("valr2")) {
             displayName = "Assembly";
-            radix = "decimal";
+            radix = "signed decimal";
             type = "Instructions";
         } 
         else if (name.includes("linetabs")) {
             displayName = "C+-";
-            radix = "decimal";
+            radix = "signed decimal";
             type = "Instructions";
         }
         
         else if (name.startsWith("me1")) {
             const varName = parts.slice(4, -2).join('_');
             displayName = `int ${varName} in ${parts[2]}`;
-            radix = "decimal";
+            radix = "signed decimal";
             type = "Variables";
         } 
         else if (name.startsWith("me2")) {
             const varName = parts.slice(4, -2).join('_');
             displayName = `float ${varName} in ${parts[2]}`;
-            radix = "hex"; 
+            radix = "signed decimal"; 
             type = "Variables";
         } 
+        else if (name.startsWith("me3")) {
+            const varName = parts.slice(4, -2).join('_');
+            displayName = `vector ${varName} in ${parts[2]}`;
+            radix = "vector"; 
+            type = "Variables";
+        }
         else if (name.startsWith("comp")) {
             const varName = parts.slice(4, -2).join('_');
-            displayName = `complex ${varName} in ${parts[2]}`;
+            displayName = `complex ${varName} in ${parts[3]}`;
             radix = "complex";
             type = "Variables";
         }
@@ -1213,7 +1214,19 @@ function showSignalContextMenu(event, signal) {
                 </div>
                 <div class="wt-context-item ${currentRadix === 'decimal' ? 'active' : ''}" data-action="radix-decimal">
                     <span class="material-symbols-outlined">numbers</span>
-                    <span>Decimal</span>
+                    <span>Decimal (Unsigned)</span>
+                </div>
+                <div class="wt-context-item ${currentRadix === 'signed decimal' ? 'active' : ''}" data-action="radix-signed decimal">
+                    <span class="material-symbols-outlined">exposure</span>
+                    <span>Signed Decimal</span>
+                </div>
+                <div class="wt-context-item ${currentRadix === 'complex' ? 'active' : ''}" data-action="radix-complex">
+                    <span class="material-symbols-outlined">calculate</span>
+                    <span>Complex (a + j b)</span>
+                </div>
+                <div class="wt-context-item ${currentRadix === 'vector' ? 'active' : ''}" data-action="radix-vector">
+                    <span class="material-symbols-outlined">data_array</span>
+                    <span>Vector [a, b]</span>
                 </div>
                 <div class="wt-context-item ${currentRadix === 'binary' ? 'active' : ''}" data-action="radix-binary">
                     <span class="material-symbols-outlined">grid_on</span>
@@ -1689,6 +1702,46 @@ function calculateTimeStep() {
     return niceStep * magnitude;
 }
 
+function formatVectorValue(binValue) {
+    if (binValue.includes('x') || binValue.includes('z') || binValue.includes('u')) return binValue;
+    
+    const nbm = parseInt(binValue.substring(0, 8), 2);
+    const nbe = parseInt(binValue.substring(8, 16), 2);
+    
+    const nbits = 1 + nbe + nbm;
+    if (binValue.length < 16 + 2 * nbits) return binValue;
+    
+    const partA = binValue.substring(16, 16 + nbits);
+    const partB = binValue.substring(16 + nbits, 16 + 2 * nbits);
+    
+    const parseComponent = (ifl) => {
+        const s = ifl[0] === '1';
+        let exb = ifl.substring(1, 1 + nbe);
+        const es = exb[0] === '1';
+        
+        if (es) {
+            let inverted = '';
+            for (let i = 0; i < exb.length; i++) inverted += exb[i] === '1' ? '0' : '1';
+            exb = inverted;
+        }
+        
+        let e = parseInt(exb, 2);
+        if (es) e = -(e + 1);
+        
+        const mab = ifl.substring(1 + nbe, 1 + nbe + nbm);
+        const m = parseInt(mab, 2);
+        
+        let f = m * Math.pow(2, e);
+        if (s) f = -f;
+        return f.toFixed(2);
+    };
+    
+    const valA = parseComponent(partA);
+    const valB = parseComponent(partB);
+    
+    return `[${valA}, ${valB}]`;
+}
+
 function formatComplexValue(binValue) {
     const valLow = String(binValue).toLowerCase();
     if (valLow.includes('x') || valLow.includes('z') || valLow.includes('u') || valLow.includes('w')) {
@@ -2031,13 +2084,6 @@ function formatBusValue(value, signal) {
         return value; 
     }
 
-    const sigName = (signal.name || '').toLowerCase();
-    if (sigName.includes('complex') || sigName.includes('comp_')) {
-        const paddedValue = value.padStart(signal.width, '0');
-        
-        return formatComplexValue(paddedValue);
-    }
-
     if (value.includes('x') || value.includes('X')) return 'X';
     if (value.includes('z') || value.includes('Z')) return 'Z';
 
@@ -2061,6 +2107,31 @@ function formatBusValue(value, signal) {
         }
         case 'decimal': {
             return decimalValue.toString(10);
+        }
+        case 'signed decimal': {
+            if (value.includes('x') || value.includes('z') || value.includes('u')) return value;
+            
+            const binStr = value.padStart(signal.width, '0');
+            
+            if (binStr[0] === '0') {
+                return BigInt('0b' + binStr).toString();
+            } 
+            else {
+                let inverted = '';
+                for (let i = 0; i < binStr.length; i++) {
+                    inverted += binStr[i] === '1' ? '0' : '1';
+                }
+                const absoluteValue = BigInt('0b' + inverted) + 1n;
+                return '-' + absoluteValue.toString();
+            }
+        }
+        case 'vector': {
+            const paddedValue = value.padStart(signal.width, '0');
+            return formatVectorValue(paddedValue);
+        }
+        case 'complex': {
+            const paddedValue = value.padStart(signal.width, '0');
+            return formatComplexValue(paddedValue);
         }
         case 'binary': {
             return '0b' + value.padStart(signal.width, '0');
